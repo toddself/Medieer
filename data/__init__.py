@@ -1,18 +1,19 @@
 import os
+from os.path import join as fjoin
 
 from sqlobject import connectionForURI, sqlhub
 
-from models import SysRef, Media, Genre, Settings
+from models import NSID, Media, Genre, Settings, DataError, Actor
 
 def connect():
     storagepath = os.getcwd()
-    db_fn = 'movieinfo.sqlite'
-    db_filepath = storagepath
+    db_fn = 'mediainfo.sqlite'
+    db_filepath = fjoin('data', storagepath)
 
     if not os.path.isdir(db_filepath):
         os.makedirs(db_filepath)
 
-    db_filelocation = "%s/%s" % (db_filepath, db_fn)
+    db_filelocation = fjoin(db_filepath, db_fn)
     db_driver = 'sqlite'
 
     connection_string = "%s:%s" % (db_driver, db_filelocation)
@@ -27,8 +28,12 @@ def connect():
         
     if not Settings.tableExists():
         Settings.createTable()
+        s = Settings(key='imdb_id_pattern', value="t{2}\d{7}$")
         
-    if not SysRef.tableExists():
-        SysRef.createTable()
+    if not NSID.tableExists():
+        NSID.createTable()
+        
+    if not Actor.tableExists():
+        Actor.createTable()
 
 connection = connect()

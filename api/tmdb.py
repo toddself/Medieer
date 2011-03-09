@@ -1,48 +1,110 @@
 #!/usr/bin/env python
 import json
 import sys
+import re
 
 from urllib2 import urlopen, HTTPError
 from urllib import quote_plus
 from datetime import datetime
 
-from movie import Movie, Genre, connect
+import data
 from sqlobject import SQLObjectNotFound
 
-class TMDBNotFoundError(Exception):
-    pass
-
-class TMDBUrls():
-    base = 'http://api.themoviedb.org'
-    apikey = '32143db63692aa6a5cb01336cc06211b'
-    version = '2.1'
-    output = 'json'
-    lang = 'en-US'
+class APIBase():
+    lang = 'en'
     
-    def __init__(self, lang = '', version=''):
-        if lang:
-            self.lang = lang           
+    def __init__(self):
+        pass
+    
+    def _hasLeadingSlash(self, term):
+        if len(term) > 0:
+            try:
+                term.index('/')
+            except ValueError:
+                return False
+            else:
+                return True
+        else:
+            return True
         
-        if version:
-            self.version = version
+    def makeURL(self, path, term=''):
+        if not self._hasLeadingSlash(term):
+            term = '/%s' % term
+        
+        self.url = "%(proto)s://%(host)s%(path)s%(term)s" % \
+                    {'proto': self.protocol,
+                     'host': self.host,
+                     'path': path,
+                     'term': term}
+            
+    def getResponse(self):
+        if not self.url:
+            raise APIError('No defined URL to access')
+        
+        try:
+            self.server_response = urlopen(self.url)
+        except HTTPError:
+            raise APIError("Couldn't open %s for reading" % self.url)
 
-    def generateURL(self, domain, action, auth=False):
-        self._calledAPI = "%(domain)s.%(action)s" % \
-                            {'domain': domain.capitalize(), 'action': action}
+        self._server_msg = self._server_response.msg
+        
+        if "OK" not in self._server_msg:
+            raise APIError("Server responded with something I can't handle.")
+        else:
+            self._response_data = self._server_response.read()
 
-        url = "%(base)s/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s" % \
-                              {'base': self.base,
-                               'version': self.version,
-                               'api': self._calledAPI,
-                               'lang': self.lang,
-                               'output': self.output,
-                               'apikey': self.apikey,}
+class TMDB(APIBase):
+    self.output = output
+    self.path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'
+    self.apikey = '32143db63692aa6a5cb01336cc06211b'
+    self.protocol = 'http'
+    self.host = 'api.themoviedb.org'
+    self.version = '2.1'
+    self.output = 'json'
+    self.api = 'tmdb'
+    
+    def getAPIMethod(self, domain, method):
+        calledAPI = "%s.%s" % (domain.capitalize(), method)
+        return calledAPI
+    
+    def pathParams(self):
+        return {'version': self.version, 
+                'api': self.api_method,
+                'lang': self.lang,
+                'output': self.output,
+                'apikey': self.apikey,}
 
-        if auth:
-            url = ''.join(url.split('/'+self.lang))
+    def lookup(self, search_term, domain = 'movie'):
+        self.domain = domain        
+        if isinstance(search_term, str):
+            if re.search(self.imdb_id_pattern, search_term):
+                self.method = 'imdbLookup'
+            else:
+                self.method = 'search'
+        else:
+            self.method = 'getInfo'
+            
+        self.api_method = self.getAPIMethod(self.domain, self.method)
+        path = self.path_format % self.pathParams()
+        self.makeURL(path, search_term)
+        self.getResponse()
+        
+        movies = self.parseResponse(method)
 
-        self._baseURL = url
-        return self._baseURL                         
+        if method == 'search' and domain == 'movie':
+            for movie in movies:
+                self.lookup(movie.)
+
+        
+        if two_pass:
+            movie_ids = self.parseResponse(method)
+            for mid in movie_ids:
+                
+                
+                    
+
+    
+                     
 
 class TMDB():
     token = ''
@@ -191,23 +253,14 @@ class TMDB():
             except KeyError:
                 pass
         return '     '.join(actors[:3])
-    
-    def _getResponse(self, url):
-        try:
-            self._server_response = urlopen(url)
-        except HTTPError:
-            print "Couldn't open:", url
-            sys.exit(3)
 
-        self._server_msg = self._server_response.msg
-        if "OK" not in self._server_msg:
-            raise TMDBNotFoundError
-        else:
-            self._response_data = json.loads(self._server_response.read())
-            if "Nothing found" in self._response_data[0]:
-                raise TMDBNotFoundError
-            else:
-                return self._response_data
+class APIError(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)    
+
         
 if __name__ == '__main__':
     connect()
@@ -216,3 +269,5 @@ if __name__ == '__main__':
     print "ID: ", this_id
     this_movie = t.getMovieInfoByTMDB_ID(this_id)
     print this_movie.toxml()
+    
+    

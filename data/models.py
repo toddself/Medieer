@@ -4,6 +4,31 @@ from datetime import datetime
 from sqlobject import *
 from sqlobject.versioning import Versioning
 
+class Actor(SQLObject):
+    name = UnicodeCol(length=255)
+    nsids = MultipleJoin('NSID')
+    
+    def _set_tmdb_id(self, value):
+        n = NSID(ns=NSID.TMDB, actor=self, value=str(value))
+        
+    def _set_imdb_id(self, value):
+        n = NSID(ns=NSID.IMDB, actor=self, value=value)
+    
+    def _set_tvdb_id(self, value):
+        n = NSID(ns=NSID.TVDB, actor=self, value=value)
+
+    def _get_tmdb_id(self):
+        return self.get_id(NSID.TMDB)
+        
+    def _get_imdb_id(self):
+        return self.get_id(NSID.IMDB)
+        
+    def _get_tvdb_id(self):
+        return self.get_id(NSID.TVDB)
+    
+    def get_id(self, ns):
+        return list(NSID.select(AND(NSID.q.ns==ns, NSID.q.actor==self)))[0].value
+
 class Settings(SQLObject):
     key = UnicodeCol(length=255, unique=True)
     value = UnicodeCol(length=255)
@@ -11,31 +36,44 @@ class Settings(SQLObject):
 class Genre(SQLObject):
     name = UnicodeCol(length=255)
     movies = RelatedJoin('Media')
-    nsid = MultipleJoin('SysRef')
+    nsids = MultipleJoin('NSID')
     
     def __str__(self):
         return self.name
 
-class SysRef(SQLObject):
+class NSID(SQLObject):
     TMDB = 0
     IMDB = 1
     TVDB = 2
-    
     sites = ["tmdb", "imdb", "tvdb"]
     
-    ns = IntCol(default=SysRef.TMDB)
+    ns = IntCol(default=TMDB)
     value = UnicodeCol(default='')
+    actor = ForeignKey('Actor', default=0)
+    media = ForeignKey('Media', default=0)
+    genre = ForeignKey('Genre', default=0)
     
     def _get_ns(self):
         return self.sites[self._SO_get_ns()]
     
     def _set_ns(self, value):
-        if int(value) and value < len(self.sites):
+        if isinstance(value, int) and value < len(self.sites):
             self._SO_set_ns(value)
         elif value in self.sites:
             self._SO_set_ns(self.sites.index(value))
         else:
-            raise DataError('External site namespace unrecognized: %s' % value)
+            raise ValueError('External site namespace unrecognized: %s' % value)
+    
+    def _set_value(self, value):
+        if self.ns == self.IMDB:
+            import re
+            imdb_pattern = list(Settings.select(Settings.q.key=="imdb_id_pattern"))[0].value
+            if re.search(imdb_pattern, value):
+                self._SO_set_value(value)
+            else:
+                raise ValueError('ID does not match IMDB pattern')
+        else:
+            self._SO_set_value(unicode(value))
 
 class Media(SQLObject):
     G = 0
@@ -55,24 +93,30 @@ class Media(SQLObject):
     TVMA = 14
     ratings = ['G', 'NC-17', 'PG', 'PG-13', 'R', 'UR', 'UNRATED', 'NR', 'TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA']
     
-    nsid = MultipleJoin('SysRef')    
+    nsids = MultipleJoin('NSID')    
     title = UnicodeCol(length=255, default='')
     year = IntCol(default=datetime.now().year)
     genres = RelatedJoin('Genre')
     rating = IntCol(default=UR)
     director = UnicodeCol(length=255, default='')
-    actors = UnicodeCol(default='')
+    actors = MultipleJoin('Actor')
     description = UnicodeCol(default='')
     length = IntCol(default=0)
     poster_remote_URI = UnicodeCol(default='')
     poster_local_URI = UnicodeCol(default='')
     file_URI = UnicodeCol(default='')
+    
+    def _get_tmdb_id(self):
+        return list(NSID.select(AND(NSID.q.media==self, NSID.q.ns==NSID.TMDB)))[0].value
+    
+    def _set_tmdb_id(self, value):
+        pass
 
     def _get_rating(self):
         return self.ratings[self._SO_get_rating()]
     
     def _set_rating(self, value):
-        if int(value) and value < len(self.ratings):
+        if isinstance(value, int) and value < len(self.ratings):
             self._SO_set_rating(value)
         elif value in self.ratings:
             self._SO_set_rating(self.ratings.index(value))
