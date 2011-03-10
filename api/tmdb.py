@@ -19,15 +19,17 @@ class APIMedia():
     runtime = ''
     director = ''
     ids = []
+    rating = ''
     poster_url = ''
     
 class APIGenre():
     name = ''
     ids = []
 
-class APIActor():
+class APIPerson():
     name = ''
     ids = []
+    job = ''
 
 class APIBase():
     lang = 'en'
@@ -127,175 +129,59 @@ class TMDB(APIBase):
     def getInfoParser(self, api_data):
         d = api_data[0]
         movie = APIMovie()
-        movie.title = d.get('title', '')
+        movie.title = d.get('name', '')
         movie.description = d.get('overview', '')
-        movie.year = 
+        movie.year = d.get('released', '')
+        movie.runtime = d.get('runtime', '')
+        movie.rating = d.get('certification', 'NR')
+        movie.genres = self.getGenres(d.get('genres',[]))
+        movie.actors = self.getPerson(d.get('cast', []), 'actor')
+        movie.director = self.getPerson(d.get('cast', []), 'director')
+        movie.ids = [['tmdb', d.get('id', 0)], ['imdb', d.get('imdb_id', 'tt0000000')]]
+        movie.poster_url = self.getPoster(d.get('posters'), [])
         
-        
-        title = ''
-        genres = []
-        actors = []
-        description = ''
-        year = ''
-        runtime = ''
-        director = ''
-        ids = []
-        poster_url = ''
-        
+        return movie
         
     def searchParser(self):
         pass
     
     def getListParser(self):
         pass
-
-class TMDB():
-    token = ''
-    connection = None
-
-    def __init__(self, apikey = '', output = 'json'):
-        if apikey:
-            self.apikey = apikey
         
-        self.urls = TMDBUrls()
-        
-        connection = connect()
-        
-    def getMovieInfoByName(self, name):
-        this_id = self.getMovieIDByName(name)
-        return self.getMovieInfoByTMDB_ID(this_id)
-
-    def getMovieIDByName(self, name):
-        self.domain = 'movie'
-        self.action = 'search'
-        self.searchTerm = quote_plus(name)
-        
-        try:
-            movie_list = Movie.select("""movie.title LIKE '%s'""" % name)
-            if movie_list.count() == 1:
-                self.tmdb_id = movie_list[0].tmdb_id
-            else:
-                raise SQLObjectNotFound
-        except SQLObjectNotFound:
-            self.url = "%s/%s" % (self.urls.generateURL(self.domain, self.action), self.searchTerm)
-
-            movie_info = self._getResponse(self.url)[0]
-            self.tmdb_id = movie_info['id']
-        
-        return self.tmdb_id
-        
-    def genreCount(self):
-        return len(list(Genre.select()))
-        
-    def getMovieInfoByTMDB_ID(self, tmdb_id=''):
-        self.domain = 'movie'
-        self.action = 'getInfo'
-        if tmdb_id:
-            self.tmdb_id = tmdb_id
-        
-        try:    
-            movie_list = Movie.select(Movie.q.tmdb_id==self.tmdb_id)
-            if movie_list.count() == 1:
-                oMovie = movie_list[0]
-            elif movie_list.count() == 0:
-                raise SQLObjectNotFound
-            else:
-                raise AttributeError
-        except SQLObjectNotFound:
-        
-            self.url = "%s/%s" % (self.urls.generateURL(self.domain, self.action), self.tmdb_id)        
-            self.movie_info = self._getResponse(self.url)[0]
-                    
-            oMovie = Movie(tmdb_id = self._getKey('id', 0),
-                           imdb_id = self._getKey('imdb_id', ''),
-                           title = self._getKey('name', ''),
-                           year = int(self._getYearFromDate(self._getKey('released', ''))),
-                           mpaa = Movie.ratings.index(self._getKey('certification', 'NR')),
-                           director = self._getDirector(self._getKey('cast', [])),
-                           actors = self._getPrimaryActors(self._getKey('cast', [])),
-                           description = self._getKey('overview', ''),
-                           length = int(self._getKey('runtime', 0)),
-                           poster_remote_URI = self._getPosterURL(self._getKey('posters', '')),
-                           )
-
-            for genre in self._getGenres(self._getKey('genres', '')):
-                oMovie.addGenre(genre)
-        
-        return oMovie
-        
-    def _getYearFromDate(self, dateStr):
-        if '-' in dateStr:
-            return dateStr.split('-')[0]
-        else:
-            return datetime.now().year
-        
-    def _getKey(self, key, default):
-        try:
-            value = self.movie_info[key]
-        
-            if value == None or value == '':
-                return default
-            else:
-                return value
-        except KeyError:
-            return default
+    def getGenres(self, genre_list):
+        genres = []
+        for genre in genre_list:
+            g = APIGenre()
+            g.name = genre.get('name', '')
+            g.ids = [['tmdb', genre.get('id', 0)]]
+            genres.append(g)
             
+        return genres
         
-    def _getPosterURL(self, posterDict):
-        for poster in posterDict:
-            try:
-                if poster['image']['size'] == "cover":
-                    return poster['image']['url']
-            except KeyError:
-                if poster['image']['size'] == 'mid':
-                    return poster['image']['url']
+    def getPerson(self, cast_list, search_job):
+        people = []
+        for cast in cast_list:
+            job = cast.get('job', '')
+            if job.lower() == search_job:
+                person = APIPerson()
+                person.name = cast.get('name', '')
+                person.role = job
+                person.id = [['tmdb', cast.get('id', 0)],]
+                people.append(person)
+            
+        return people
         
-        return ''
-                    
-    
-    def _getGenres(self, genreDict):
-        self.genres = []
-        for genre in genreDict:
-            try:
-                self.genres.append(Genre.byTmdb_id(int(genre['id'])))
-            except KeyError:
-                pass
+    def getPoster(self, poster_list):
+        poster_url = ''
+        for image in poster_list:
+            poster = image.get('image', {})
+            if poster.get('size', '') == 'cover' and poster.get('url', False):
+                poster_url = poster.get('url')
+            
+            if not poster_url and poster.get('size', None) == 'mid' and poster.get('url', False):
+                poster_url = poster.get('url')
         
-        return self.genres
-
-    
-    def populateGenres(self):
-        self.domain = 'genres'
-        self.action = 'getList'
-        self.url = self.urls.generateURL(self.domain, self.action)
-        self.genre_info = self._getResponse(self.url)
-        
-        for genre in self.genre_info:
-            try:
-                g = Genre(name=genre['name'], tmdb_id=int(genre['id']))
-            except KeyError:
-                pass
-        
-        
-    
-    def _getDirector(self, castDict):
-        for member in castDict:
-            try:
-                if member['job'] == 'Director':
-                    return member['name']
-            except KeyError:
-                return ''
-
-    
-    def _getPrimaryActors(self, castDict):
-        actors = []
-        for member in castDict:
-            try:
-                if member['job'] == 'Actor':
-                    actors.append(member['name'])
-            except KeyError:
-                pass
-        return '     '.join(actors[:3])
+        return poster_url
 
 class APIError(Exception):
     def __init__(self, value):

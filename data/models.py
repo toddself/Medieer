@@ -62,9 +62,10 @@ class NSCommon():
     def _get_tvdb_id(self):
         return self._get_id(NSID.TVDB)
 
-class Actor(SQLObject, NSCommon):
+class Person(SQLObject, NSCommon):
     name = UnicodeCol(length=255)
     nsids = MultipleJoin('NSID')
+    job = UnicodeCol(length=255)
 
 class Settings(SQLObject):
     key = StringCol(length=255, unique=True)
@@ -86,7 +87,7 @@ class NSID(SQLObject):
     
     ns = IntCol(default=TMDB)
     value = UnicodeCol(default='')
-    actor = ForeignKey('Actor', default=0)
+    actor = ForeignKey('Person', default=0)
     media = ForeignKey('Media', default=0)
     genre = ForeignKey('Genre', default=0)
     nsindex = DatabaseIndex('ns', 'value', unique=True)
@@ -125,8 +126,8 @@ class Media(SQLObject, NSCommon):
     released = DateTimeCol(default=datetime.now())
     genres = RelatedJoin('Genre')
     rating = IntCol(default=UR)
-    director = UnicodeCol(length=255, default='')
-    actors = MultipleJoin('Actor')
+    director = ForeignKey('Person')
+    actors = MultipleJoin('Person')
     description = UnicodeCol(default='')
     length = IntCol(default=0)
     poster_remote_URI = UnicodeCol(default='')
@@ -150,4 +151,9 @@ class Media(SQLObject, NSCommon):
         else:
             raise ValueError("%s is not a known rating")
     
-    def _set_year
+    def _set_released(self, value):
+        if isinstance(value, datetime):
+            self._SO_set_released(value)
+        else:
+            d = datetime.strptime(value, '%Y-%m-%d').date()
+            self._SO_set_released(d)

@@ -4,7 +4,7 @@ from os.path import join as fjoin
 from appdirs import AppDirs
 from sqlobject import connectionForURI, sqlhub
 
-from models import NSID, Media, Genre, Settings, DataError, Actor
+from models import NSID, Media, Genre, Settings, DataError, Person
 from main import __APP_NAME__, __APP_AUTHOR__, __VERSION__
 
 def connect():
@@ -33,7 +33,7 @@ def connect():
     if not NSID.tableExists():
         NSID.createTable()
         
-    if not Actor.tableExists():
-        Actor.createTable()
+    if not Person.tableExists():
+        Person.createTable()
 
 connection = connect()
