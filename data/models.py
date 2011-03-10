@@ -9,7 +9,8 @@ class Actor(SQLObject):
     nsids = MultipleJoin('NSID')
     
     def _set_tmdb_id(self, value):
-        n = NSID(ns=NSID.TMDB, actor=self, value=str(value))
+        n = NSID(ns=NSID.TMDB, value=str(value)) 
+        setattr(n, self.__class__.__name__, self)
         
     def _set_imdb_id(self, value):
         n = NSID(ns=NSID.IMDB, actor=self, value=value)
