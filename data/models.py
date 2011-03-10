@@ -5,20 +5,70 @@ from sqlobject import *
 from sqlobject.versioning import Versioning
 
 class NSCommon():
-    def _set_id(ns, value):
+    '''
+    NSCommon defines a base set of getter and setter methods allowing
+    ease of access to NSID class.  This way specific namespace ids can be
+    accessed through instance attributes.
+    
+    ex:
+    
+    Actor.tmdb_id
+    Media.imdb_id
+    '''
+    
+    imdb_id_pattern = 't{2}\d{7}$'
+    tmdb_id_pattern = '^\d+$'
+    
+    def _set_id(self, ns, value):
         n = NSID(ns=NSID.sites.index(ns), value=str(value))
         setattr(n, self.__class__.__name__, self)
     
-    def _get_id(ns, value):
+    def _get_id(self, ns):
         return list(NSID.select(AND(NSID.q.ns==ns, getattr(NSID.q, self.__class__.__name__)==self)))[0].value
+        
+    def _set_tmdb_id(self, value):
+        if isinstance(value, int):
+            tmdb_id = str(value)
+        else:
+            import re
+            if re.search(self.tmdb_id_pattern, value):
+                tmdb_id = value
+            else:
+                raise ValueError('TMDB IDs must be integers. %s' % value)
+        
+        self._set_id(NSID.TMDB, tmdb_id)
+        
+    def _set_imdb_id(self, value):
+        if isinstance(value, str):
+            import re
+            if re.search(self.imdb_id_pattern, value):
+                imdb_id = value
+            else:
+                raise ValueError('IMDB IDs must be in the form of two letters followed by seven digits')
+        else:
+            raise ValueError('IMDB IDs must be in the form of two letters followed by seven digits')
+        
+        self._set_id(NSID.IMDB, imdb_id)
+        
+    def _set_tvdb_id(self, value):
+        self._set_id(NSID.TVDB, str(value))
+        
+    def _get_tmdb_id(self):
+        return self._get_id(NSID.TMDB)
+
+    def _get_imdb_id(self):
+        return self._get_id(NSID.IMDB)
+    
+    def _get_tvdb_id(self):
+        return self._get_id(NSID.TVDB)
 
 class Actor(SQLObject, NSCommon):
     name = UnicodeCol(length=255)
     nsids = MultipleJoin('NSID')
 
 class Settings(SQLObject):
-    key = UnicodeCol(length=255, unique=True)
-    value = UnicodeCol(length=255)
+    key = StringCol(length=255, unique=True)
+    value = StringCol(length=255)
 
 class Genre(SQLObject, NSCommon):
     name = UnicodeCol(length=255)
@@ -51,17 +101,6 @@ class NSID(SQLObject):
             self._SO_set_ns(self.sites.index(value))
         else:
             raise ValueError('External site namespace unrecognized: %s' % value)
-    
-    def _set_value(self, value):
-        if self.ns == self.IMDB:
-            import re
-            imdb_pattern = list(Settings.select(Settings.q.key=="imdb_id_pattern"))[0].value
-            if re.search(imdb_pattern, value):
-                self._SO_set_value(value)
-            else:
-                raise ValueError('ID does not match IMDB pattern')
-        else:
-            self._SO_set_value(unicode(value))
 
 class Media(SQLObject, NSCommon):
     G = 0
@@ -83,7 +122,7 @@ class Media(SQLObject, NSCommon):
     
     nsids = MultipleJoin('NSID')    
     title = UnicodeCol(length=255, default='')
-    year = IntCol(default=datetime.now().year)
+    released = DateTimeCol(default=datetime.now())
     genres = RelatedJoin('Genre')
     rating = IntCol(default=UR)
     director = UnicodeCol(length=255, default='')
@@ -109,12 +148,6 @@ class Media(SQLObject, NSCommon):
         elif value in self.ratings:
             self._SO_set_rating(self.ratings.index(value))
         else:
-            raise DataError("%s is not a known rating")
-
-class DataError(Exception):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
-
+            raise ValueError("%s is not a known rating")
+    
+    def _set_year

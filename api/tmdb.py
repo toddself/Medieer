@@ -10,6 +10,25 @@ from datetime import datetime
 import data
 from sqlobject import SQLObjectNotFound
 
+class APIMedia():
+    title = ''
+    genres = []
+    actors = []
+    description = ''
+    year = ''
+    runtime = ''
+    director = ''
+    ids = []
+    poster_url = ''
+    
+class APIGenre():
+    name = ''
+    ids = []
+
+class APIActor():
+    name = ''
+    ids = []
+
 class APIBase():
     lang = 'en'
     
@@ -76,8 +95,9 @@ class TMDB(APIBase):
 
     def lookup(self, search_term, domain = 'movie'):
         self.domain = domain        
-        if isinstance(search_term, str):
-            if re.search(self.imdb_id_pattern, search_term):
+        self.search_term = search_term
+        if isinstance(self.search_term , str):
+            if re.search(self.imdb_id_pattern, self.search_term):
                 self.method = 'imdbLookup'
             else:
                 self.method = 'search'
@@ -86,25 +106,48 @@ class TMDB(APIBase):
             
         self.api_method = self.getAPIMethod(self.domain, self.method)
         path = self.path_format % self.pathParams()
-        self.makeURL(path, search_term)
+        self.makeURL(path, self.search_term)
         self.getResponse()
         
         movies = self.parseResponse(method)
 
         if method == 'search' and domain == 'movie':
             for movie in movies:
-                self.lookup(movie.)
-
+                self.lookup(movie.tmdb_id)
         
-        if two_pass:
-            movie_ids = self.parseResponse(method)
-            for mid in movie_ids:
-                
-                
-                    
-
+        return movies
+        
+    def parseResponse(self, method):
+        json_data = json.loads(self._response_data)
+        if "Nothing found" in json_data:
+            raise APIError("No information found for ")
+        api_data = eval('self.%sParser' % method)(json_data)
+        return api_data
     
-                     
+    def getInfoParser(self, api_data):
+        d = api_data[0]
+        movie = APIMovie()
+        movie.title = d.get('title', '')
+        movie.description = d.get('overview', '')
+        movie.year = 
+        
+        
+        title = ''
+        genres = []
+        actors = []
+        description = ''
+        year = ''
+        runtime = ''
+        director = ''
+        ids = []
+        poster_url = ''
+        
+        
+    def searchParser(self):
+        pass
+    
+    def getListParser(self):
+        pass
 
 class TMDB():
     token = ''
