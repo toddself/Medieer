@@ -4,37 +4,23 @@ from datetime import datetime
 from sqlobject import *
 from sqlobject.versioning import Versioning
 
-class Actor(SQLObject):
+class NSCommon():
+    def _set_id(ns, value):
+        n = NSID(ns=NSID.sites.index(ns), value=str(value))
+        setattr(n, self.__class__.__name__, self)
+    
+    def _get_id(ns, value):
+        return list(NSID.select(AND(NSID.q.ns==ns, getattr(NSID.q, self.__class__.__name__)==self)))[0].value
+
+class Actor(SQLObject, NSCommon):
     name = UnicodeCol(length=255)
     nsids = MultipleJoin('NSID')
-    
-    def _set_tmdb_id(self, value):
-        n = NSID(ns=NSID.TMDB, value=str(value)) 
-        setattr(n, self.__class__.__name__, self)
-        
-    def _set_imdb_id(self, value):
-        n = NSID(ns=NSID.IMDB, actor=self, value=value)
-    
-    def _set_tvdb_id(self, value):
-        n = NSID(ns=NSID.TVDB, actor=self, value=value)
-
-    def _get_tmdb_id(self):
-        return self.get_id(NSID.TMDB)
-        
-    def _get_imdb_id(self):
-        return self.get_id(NSID.IMDB)
-        
-    def _get_tvdb_id(self):
-        return self.get_id(NSID.TVDB)
-    
-    def get_id(self, ns):
-        return list(NSID.select(AND(NSID.q.ns==ns, NSID.q.actor==self)))[0].value
 
 class Settings(SQLObject):
     key = UnicodeCol(length=255, unique=True)
     value = UnicodeCol(length=255)
 
-class Genre(SQLObject):
+class Genre(SQLObject, NSCommon):
     name = UnicodeCol(length=255)
     movies = RelatedJoin('Media')
     nsids = MultipleJoin('NSID')
@@ -53,6 +39,7 @@ class NSID(SQLObject):
     actor = ForeignKey('Actor', default=0)
     media = ForeignKey('Media', default=0)
     genre = ForeignKey('Genre', default=0)
+    nsindex = DatabaseIndex('ns', 'value', unique=True)
     
     def _get_ns(self):
         return self.sites[self._SO_get_ns()]
@@ -76,7 +63,7 @@ class NSID(SQLObject):
         else:
             self._SO_set_value(unicode(value))
 
-class Media(SQLObject):
+class Media(SQLObject, NSCommon):
     G = 0
     NC17 = 1
     PG = 2
