@@ -4,7 +4,7 @@ from os.path import join as fjoin
 from appdirs import AppDirs
 from sqlobject import connectionForURI, sqlhub
 
-from models import NSID, Media, Genre, Settings, DataError, Person
+from models import NSID, Media, Genre, Settings, Person
 from main import __APP_NAME__, __APP_AUTHOR__, __VERSION__
 
 def connect():

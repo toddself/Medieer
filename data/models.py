@@ -63,18 +63,36 @@ class NSCommon():
         return self._get_id(NSID.TVDB)
 
 class Person(SQLObject, NSCommon):
-    name = UnicodeCol(length=255)
+    name = UnicodeCol(length=255, default='')
     nsids = MultipleJoin('NSID')
-    job = UnicodeCol(length=255)
+    job = UnicodeCol(length=255, default='')
+    media = RelatedJoin('Media')
+    
+    def fromAPIPerson(self, APIPerson):
+        self.name = APIPerson.name
+        self.job = APIPerson.job
+        for ns in APIPerson.ids:
+            n = NSID(ns=ns['ns'], value=ns['value'], person=self)
+        
+    def __str__(self):
+        return self.name
 
 class Settings(SQLObject):
     key = StringCol(length=255, unique=True)
     value = StringCol(length=255)
+    
+    def __str__(self):
+        return self.value
 
 class Genre(SQLObject, NSCommon):
-    name = UnicodeCol(length=255)
-    movies = RelatedJoin('Media')
+    name = UnicodeCol(length=255, default='')
+    media = RelatedJoin('Media')
     nsids = MultipleJoin('NSID')
+    
+    def fromAPIGenre(self, APIGenre):
+        self.name = APIGenre.name
+        for ns in APIGenre.ids:
+            n = NSID(ns=ns['ns'], value=ns['value'], genre=self)
     
     def __str__(self):
         return self.name
@@ -87,10 +105,9 @@ class NSID(SQLObject):
     
     ns = IntCol(default=TMDB)
     value = UnicodeCol(default='')
-    actor = ForeignKey('Person', default=0)
+    person = ForeignKey('Person', default=0)
     media = ForeignKey('Media', default=0)
     genre = ForeignKey('Genre', default=0)
-    nsindex = DatabaseIndex('ns', 'value', unique=True)
     
     def _get_ns(self):
         return self.sites[self._SO_get_ns()]
@@ -102,6 +119,15 @@ class NSID(SQLObject):
             self._SO_set_ns(self.sites.index(value))
         else:
             raise ValueError('External site namespace unrecognized: %s' % value)
+    
+    def _set_value(self, value):
+        if not isinstance(value, str):
+            self._SO_set_value(str(value))
+        else:
+            self._SO_set_value(value)
+    
+    def __str__(self):
+        return "%s: %s" % (self.sites.index(self.ns), self.value)
 
 class Media(SQLObject, NSCommon):
     G = 0
@@ -126,20 +152,38 @@ class Media(SQLObject, NSCommon):
     released = DateTimeCol(default=datetime.now())
     genres = RelatedJoin('Genre')
     rating = IntCol(default=UR)
-    director = ForeignKey('Person')
-    actors = MultipleJoin('Person')
+    director = ForeignKey('Person', default=0)
+    actors = RelatedJoin('Person', addRemoveName='Actor')
     description = UnicodeCol(default='')
-    length = IntCol(default=0)
+    runtime = IntCol(default=0)
     poster_remote_URI = UnicodeCol(default='')
     poster_local_URI = UnicodeCol(default='')
     file_URI = UnicodeCol(default='')
     
-    def _get_tmdb_id(self):
-        return list(NSID.select(AND(NSID.q.media==self, NSID.q.ns==NSID.TMDB)))[0].value
-    
-    def _set_tmdb_id(self, value):
-        pass
-
+    def fromAPIMedia(self, APIMedia):
+        self.title = APIMedia.title
+        self.released = APIMedia.released
+        self.rating = APIMedia.rating
+        self.description = APIMedia.description
+        self.poster_remote_URI = APIMedia.poster_url
+        self.runtime = APIMedia.runtime
+        d = Person()
+        d.fromAPIPerson(APIMedia.director[0])
+        self.director = d    
+        
+        for nsid in APIMedia.ids:
+            n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
+        
+        for actor in APIMedia.actors:
+            a = Person()
+            a.fromAPIPerson(actor)
+            self.addActor(a)
+        
+        for genre in APIMedia.genres:
+            g = Genre()
+            g.fromAPIGenre(genre)
+            self.addGenre(g)
+        
     def _get_rating(self):
         return self.ratings[self._SO_get_rating()]
     
@@ -155,5 +199,12 @@ class Media(SQLObject, NSCommon):
         if isinstance(value, datetime):
             self._SO_set_released(value)
         else:
-            d = datetime.strptime(value, '%Y-%m-%d').date()
-            self._SO_set_released(d)
+            try:
+                d = datetime.strptime(value, '%Y-%m-%d').date()
+                self._SO_set_released(d)
+            except ValueError:
+                raise ValueError('%s is not in the form of %%Y-%%m-%%d' % value)
+            
+            
+    def __str__(self):
+        return self.title

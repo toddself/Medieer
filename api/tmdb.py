@@ -2,35 +2,64 @@
 import json
 import sys
 import re
-
 from urllib2 import urlopen, HTTPError
 from urllib import quote_plus
 from datetime import datetime
 
-import data
 from sqlobject import SQLObjectNotFound
+
+from data.models import NSCommon
+import data
+
 
 class APIMedia():
     title = ''
     genres = []
     actors = []
     description = ''
-    year = ''
     runtime = ''
     director = ''
     ids = []
     rating = ''
     poster_url = ''
+    released = ''
+    
+    def __init__(self, **kw):
+        for k in kw.keys():
+            setattr(self, k, kw[k])
+            
+    def __str__(self):
+        return self.title
+        
+    def __repr__(self):
+        return self.title
     
 class APIGenre():
-    name = ''
+    name = u''
     ids = []
+    
+    def __init__(self, **kw):
+        for k in kw.keys():
+            setattr(self, k, kw[k])
+    
+    def __str__(self):
+        return self.name
+        
+    def __repr__(self):
+        return self.name
 
 class APIPerson():
-    name = ''
+    name = u''
     ids = []
     job = ''
 
+    def __init__(self, **kw):
+        for k in kw.keys():
+            setattr(self, k, kw[k])
+
+    def __str__(self):
+        return self.name
+        
 class APIBase():
     lang = 'en'
     
@@ -38,15 +67,18 @@ class APIBase():
         pass
     
     def _hasLeadingSlash(self, term):
-        if len(term) > 0:
-            try:
-                term.index('/')
-            except ValueError:
-                return False
+        try:
+            if len(term) > 0:
+                try:
+                    term.index('/')
+                except ValueError:
+                    return False
+                else:
+                    return True
             else:
                 return True
-        else:
-            return True
+        except:
+            return False
         
     def makeURL(self, path, term=''):
         if not self._hasLeadingSlash(term):
@@ -67,22 +99,21 @@ class APIBase():
         except HTTPError:
             raise APIError("Couldn't open %s for reading" % self.url)
 
-        self._server_msg = self._server_response.msg
+        self._server_msg = self.server_response.msg
         
         if "OK" not in self._server_msg:
             raise APIError("Server responded with something I can't handle.")
         else:
-            self._response_data = self._server_response.read()
+            self._response_data = self.server_response.read()
 
 class TMDB(APIBase):
-    self.output = output
-    self.path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'
-    self.apikey = '32143db63692aa6a5cb01336cc06211b'
-    self.protocol = 'http'
-    self.host = 'api.themoviedb.org'
-    self.version = '2.1'
-    self.output = 'json'
-    self.api = 'tmdb'
+    path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'
+    apikey = '32143db63692aa6a5cb01336cc06211b'
+    protocol = 'http'
+    host = 'api.themoviedb.org'
+    version = '2.1'
+    output = 'json'
+    api = 'tmdb'
     
     def getAPIMethod(self, domain, method):
         calledAPI = "%s.%s" % (domain.capitalize(), method)
@@ -99,7 +130,7 @@ class TMDB(APIBase):
         self.domain = domain        
         self.search_term = search_term
         if isinstance(self.search_term , str):
-            if re.search(self.imdb_id_pattern, self.search_term):
+            if re.search(NSCommon().imdb_id_pattern, self.search_term):
                 self.method = 'imdbLookup'
             else:
                 self.method = 'search'
@@ -111,9 +142,9 @@ class TMDB(APIBase):
         self.makeURL(path, self.search_term)
         self.getResponse()
         
-        movies = self.parseResponse(method)
+        movies = self.parseResponse(self.method)
 
-        if method == 'search' and domain == 'movie':
+        if self.method == 'search' and self.domain == 'movie':
             for movie in movies:
                 self.lookup(movie.tmdb_id)
         
@@ -128,17 +159,17 @@ class TMDB(APIBase):
     
     def getInfoParser(self, api_data):
         d = api_data[0]
-        movie = APIMovie()
+        movie = APIMedia()
         movie.title = d.get('name', '')
         movie.description = d.get('overview', '')
-        movie.year = d.get('released', '')
+        movie.released = d.get('released', '')
         movie.runtime = d.get('runtime', '')
         movie.rating = d.get('certification', 'NR')
         movie.genres = self.getGenres(d.get('genres',[]))
         movie.actors = self.getPerson(d.get('cast', []), 'actor')
         movie.director = self.getPerson(d.get('cast', []), 'director')
-        movie.ids = [['tmdb', d.get('id', 0)], ['imdb', d.get('imdb_id', 'tt0000000')]]
-        movie.poster_url = self.getPoster(d.get('posters'), [])
+        movie.ids = [{'ns': 'tmdb', 'value': d.get('id', 0)}, {'ns': 'imdb', 'value': d.get('imdb_id', 'tt0000000')}]
+        movie.poster_url = self.getPoster(d.get('posters', []))
         
         return movie
         
@@ -153,7 +184,7 @@ class TMDB(APIBase):
         for genre in genre_list:
             g = APIGenre()
             g.name = genre.get('name', '')
-            g.ids = [['tmdb', genre.get('id', 0)]]
+            g.ids = [{'ns': 'tmdb', 'value': genre.get('id', 0)}]
             genres.append(g)
             
         return genres
@@ -166,7 +197,7 @@ class TMDB(APIBase):
                 person = APIPerson()
                 person.name = cast.get('name', '')
                 person.role = job
-                person.id = [['tmdb', cast.get('id', 0)],]
+                person.id = [{'ns': 'tmdb', 'value': cast.get('id', 0)}]
                 people.append(person)
             
         return people
