@@ -1,110 +1,9 @@
 #!/usr/bin/env python
 import json
-import sys
 import re
-from urllib2 import urlopen, HTTPError
-from urllib import quote_plus
-from datetime import datetime
 
-from sqlobject import SQLObjectNotFound
-
+from apibase import *
 from data.models import NSCommon
-import data
-
-
-class APIMedia():
-    title = ''
-    genres = []
-    actors = []
-    description = ''
-    runtime = ''
-    director = ''
-    ids = []
-    rating = ''
-    poster_url = ''
-    released = ''
-    
-    def __init__(self, **kw):
-        for k in kw.keys():
-            setattr(self, k, kw[k])
-            
-    def __str__(self):
-        return self.title
-        
-    def __repr__(self):
-        return self.title
-    
-class APIGenre():
-    name = u''
-    ids = []
-    
-    def __init__(self, **kw):
-        for k in kw.keys():
-            setattr(self, k, kw[k])
-    
-    def __str__(self):
-        return self.name
-        
-    def __repr__(self):
-        return self.name
-
-class APIPerson():
-    name = u''
-    ids = []
-    job = ''
-
-    def __init__(self, **kw):
-        for k in kw.keys():
-            setattr(self, k, kw[k])
-
-    def __str__(self):
-        return self.name
-        
-class APIBase():
-    lang = 'en'
-    
-    def __init__(self):
-        pass
-    
-    def _hasLeadingSlash(self, term):
-        try:
-            if len(term) > 0:
-                try:
-                    term.index('/')
-                except ValueError:
-                    return False
-                else:
-                    return True
-            else:
-                return True
-        except:
-            return False
-        
-    def makeURL(self, path, term=''):
-        if not self._hasLeadingSlash(term):
-            term = '/%s' % term
-        
-        self.url = "%(proto)s://%(host)s%(path)s%(term)s" % \
-                    {'proto': self.protocol,
-                     'host': self.host,
-                     'path': path,
-                     'term': term}
-            
-    def getResponse(self):
-        if not self.url:
-            raise APIError('No defined URL to access')
-        
-        try:
-            self.server_response = urlopen(self.url)
-        except HTTPError:
-            raise APIError("Couldn't open %s for reading" % self.url)
-
-        self._server_msg = self.server_response.msg
-        
-        if "OK" not in self._server_msg:
-            raise APIError("Server responded with something I can't handle.")
-        else:
-            self._response_data = self.server_response.read()
 
 class TMDB(APIBase):
     path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'
@@ -126,16 +25,21 @@ class TMDB(APIBase):
                 'output': self.output,
                 'apikey': self.apikey,}
 
-    def lookup(self, search_term, domain = 'movie'):
+    def lookup(self, search_term = '', domain = 'movie'):
         self.domain = domain        
         self.search_term = search_term
-        if isinstance(self.search_term , str):
-            if re.search(NSCommon().imdb_id_pattern, self.search_term):
-                self.method = 'imdbLookup'
+        if self.domain == 'movie':
+            if isinstance(self.search_term , str):
+                if re.search(NSCommon().imdb_id_pattern, self.search_term):
+                    self.method = 'imdbLookup'
+                else:
+                    self.method = 'search'
             else:
-                self.method = 'search'
+                self.method = 'getInfo'
+        elif self.domain == 'genres':
+            self.method = 'getList'
         else:
-            self.method = 'getInfo'
+            raise ValueError('API not implemented for %s' % self.domain)
             
         self.api_method = self.getAPIMethod(self.domain, self.method)
         path = self.path_format % self.pathParams()
@@ -145,18 +49,23 @@ class TMDB(APIBase):
         movies = self.parseResponse(self.method)
 
         if self.method == 'search' and self.domain == 'movie':
-            for movie in movies:
-                self.lookup(movie.tmdb_id)
+            info = []
+            for movie_id in movies:
+                info.append(self.lookup(movie_id)[0])
+            return info
         
         return movies
         
     def parseResponse(self, method):
-        json_data = json.loads(self._response_data)
-        if "Nothing found" in json_data:
+        self.json_data = json.loads(self._response_data)
+        if "Nothing found" in self.json_data:
             raise APIError("No information found for ")
-        api_data = eval('self.%sParser' % method)(json_data)
+        api_data = eval('self.%sParser' % method)(self.json_data)
         return api_data
     
+    def imdbLookupParser(self, api_data):
+        return self.getInfoParser(api_data)
+
     def getInfoParser(self, api_data):
         d = api_data[0]
         movie = APIMedia()
@@ -171,13 +80,18 @@ class TMDB(APIBase):
         movie.ids = [{'ns': 'tmdb', 'value': d.get('id', 0)}, {'ns': 'imdb', 'value': d.get('imdb_id', 'tt0000000')}]
         movie.poster_url = self.getPoster(d.get('posters', []))
         
-        return movie
+        return [movie,]
         
-    def searchParser(self):
-        pass
+    def searchParser(self, api_data):
+        ids = []
+        for d in api_data:
+            ids.append(d.get('id', 0))
+        
+        return ids
     
-    def getListParser(self):
-        pass
+    def getListParser(self, api_data):
+        genres = self.getGenres(api_data[1:])
+        return genres
         
     def getGenres(self, genre_list):
         genres = []
@@ -213,21 +127,3 @@ class TMDB(APIBase):
                 poster_url = poster.get('url')
         
         return poster_url
-
-class APIError(Exception):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)    
-
-        
-if __name__ == '__main__':
-    connect()
-    t = TMDB()
-    this_id = t.getMovieIDByName('Aliens')
-    print "ID: ", this_id
-    this_movie = t.getMovieInfoByTMDB_ID(this_id)
-    print this_movie.toxml()
-    
-    
