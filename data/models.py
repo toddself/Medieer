@@ -234,7 +234,10 @@ class Media(SQLObject, NSCommon):
     def listGenres(self, prepend_media_type=True):
         genres = []
         for genre in self.genres:
-            g = "[%s/%s]" % (self.media_type, genre.name)
+            if prepend_media_type:
+                g = "[%s/%s]" % (self.media_type, genre.name)
+            else:
+                g = genre.name
             genres.append(g)
         
         return genres

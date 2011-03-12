@@ -2,17 +2,44 @@
 from lxml import etree
 
 class VideoXML():
-    def __init__(self, media_library):
-        self.medium = media_library
-        self.makeXML()
+    def __init__(self):
+        pass
         
     def toxml(self, pretty=False):
         return etree.tounicode(self.xml, pretty_print=pretty)
+        
+    def makeVideoXML(self, video):
+        self.xml = etree.Element('video')
+        
+        title = etree.SubElement(self.xml, 'title')
+        title.text = video.title
+
+        year = etree.SubElement(self.xml, 'year')
+        year.text = str(video.released.year)
+
+        genre = etree.SubElement(self.xml, 'genre')
+        genre.text = video.listGenres(prepend_media_type=False)[0]
+
+        mpaa = etree.SubElement(self.xml, 'mpaa')
+        mpaa.text = video.rating
+
+        director = etree.SubElement(self.xml, 'director')
+        director.text = video.director.name
+
+        actors = etree.SubElement(self.xml, 'actors')
+        actors.text = '     '.join(video.listActors()[:3])
+
+        description = etree.SubElement(self.xml, 'description')
+        description.text = video.description
+
+        length = etree.SubElement(self.xml, 'length')
+        length.text = str(video.runtime)
+        
     
-    def makeXML(self):
+    def makeVideoDirectory(self, media):
         self.xml = etree.Element('xml')
         self.viddb = etree.SubElement(self.xml, 'viddb')
-        for video in self.medium:
+        for video in media:
             self.addVideo(video)
             
     def addVideo(self, video):
