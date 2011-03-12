@@ -1,24 +1,54 @@
 #!/usr/bin/env python
-import xmlwitch
+from lxml import etree
 
 class VideoXML():
     def __init__(self, media_library):
         self.medium = media_library
         self.makeXML()
+        
+    def toxml(self, pretty=False):
+        return etree.tounicode(self.xml, pretty_print=pretty)
     
     def makeXML(self):
-        self.xml = xmlwitch.Builder(version='1.0', encoding='utf-8')
-        with self.xml.xml:
-            with self.xml.viddb:
-                for media in self.medium:
-                    self.xml.origtitle(media.title)
-                    self.xml.year(str(media.released.year))
-                    self.xml.genre(','.join(media.listGenres()))
-                    self.xml.mpaa("Rated %s" % media.rating)
-                    self.xml.director(media.director.name)
-                    self.xml.actors('     '.join(media.listActors()[:3]))
-                    self.xml.description(media.description.decode('utf-8'))
-                    self.xml.path(media.file_URI)
-                    self.xml.length(str(media.runtime))
-                    self.xml.videocodec(media.codec)
-                    self.xml.poster(media.poster_local_URI)
+        self.xml = etree.Element('xml')
+        self.viddb = etree.SubElement(self.xml, 'viddb')
+        for video in self.medium:
+            self.addVideo(video)
+            
+    def addVideo(self, video):
+        movie = etree.SubElement(self.viddb, 'movie')
+        
+        origtitle = etree.SubElement(movie, 'origtitle')
+        origtitle.text = video.title
+        
+        year = etree.SubElement(movie, 'year')
+        year.text = str(video.released.year)
+        
+        genre = etree.SubElement(movie, 'genre')
+        genre.text = ','.join(video.listGenres())
+        
+        mpaa = etree.SubElement(movie, 'mpaa')
+        mpaa.text = 'Rated %s' % video.rating
+        
+        director = etree.SubElement(movie, 'director')
+        director.text = video.director.name
+        
+        actors = etree.SubElement(movie, 'actors')
+        actors.text = '     '.join(video.listActors()[:3])
+        
+        description = etree.SubElement(movie, 'description')
+        description.text = video.description
+        
+        path = etree.SubElement(movie, 'path')
+        path.text = video.file_URI
+        
+        length = etree.SubElement(movie, 'length')
+        length.text = str(video.runtime)
+        
+        videocodec = etree.SubElement(movie, 'videocodec')
+        videocodec.text = video.codec
+        
+        poster = etree.SubElement(movie, 'poster')
+        poster.text = video.poster_local_URI
+
+        return movie

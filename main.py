@@ -6,7 +6,8 @@ from os.path import join as fjoin
 from urllib2 import urlopen
 
 import data
-from api.tmdb import *
+from api import TMDB
+from gen import VideoXML
 
 __APP_NAME__ = 'MediaInfo'
 __APP_AUTHOR__ = 'Todd'
@@ -15,9 +16,9 @@ __VERSION__ = '0.10'
 class GenerateXML():
     videos = []
     allowed_extensions = ['m4v', 'mp4', 'mov', 'wmv']
-    allowed_xml_types = ['roksbox',]
+    allowed_types = ['VideoXML']
 
-    def __init__(self, basepath, options, xml_type="roksbox"):
+    def __init__(self, basepath, options, xml_type="VideoXML"):
         self.videos = self.get_video_filelist(basepath)
         self.options = options
 
@@ -67,8 +68,6 @@ class GenerateXML():
 
     def make_filename(self, movie_path, movie_name, extn):
         return fjoin(movie_path, "%s.%s" % (movie_name, extn))
-
-
 
     def process(self):
         for fn_video in self.videos:
