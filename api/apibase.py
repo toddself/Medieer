@@ -13,6 +13,8 @@ class APIMedia():
     rating = ''
     poster_url = ''
     released = ''
+    media_type = ''
+    franchise = ''
     
     def __init__(self, **kw):
         for k in kw.keys():
