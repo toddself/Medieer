@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>gen/generator.xml</string>
+	<string>data/__init__.py</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -50,93 +50,21 @@
 		</dict>
 		<dict>
 			<key>filename</key>
-			<string>main.py</string>
-			<key>lastUsed</key>
-			<date>2011-03-12T14:11:12Z</date>
+			<string>MediaInfo.py</string>
 		</dict>
 	</array>
 	<key>fileHierarchyDrawerWidth</key>
 	<integer>200</integer>
 	<key>metaData</key>
 	<dict>
-		<key>api/apibase.py</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>18</integer>
-				<key>line</key>
-				<integer>15</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>44</integer>
-		</dict>
-		<key>api/tmdb.py</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>8</integer>
-				<key>line</key>
-				<integer>82</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>31</integer>
-		</dict>
 		<key>data/__init__.py</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>66</integer>
+				<integer>14</integer>
 				<key>line</key>
-				<integer>6</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>data/models.py</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>68</integer>
-				<key>line</key>
-				<integer>198</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>159</integer>
-		</dict>
-		<key>gen/generator.xml</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>34</integer>
-				<key>line</key>
-				<integer>10</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>main.py</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>19</integer>
-				<key>line</key>
-				<integer>16</integer>
+				<integer>7</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -146,16 +74,11 @@
 	</dict>
 	<key>openDocuments</key>
 	<array>
-		<string>data/models.py</string>
-		<string>api/tmdb.py</string>
-		<string>api/apibase.py</string>
-		<string>gen/generator.xml</string>
-		<string>main.py</string>
 		<string>data/__init__.py</string>
 	</array>
 	<key>showFileHierarchyDrawer</key>
 	<false/>
 	<key>windowFrame</key>
-	<string>{{90, 131}, {1405, 878}}</string>
+	<string>{{50, 102}, {1307, 901}}</string>
 </dict>
 </plist>

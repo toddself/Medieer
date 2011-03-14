@@ -1,1 +1,1 @@
-make requirements list: xmlwitch, sqlobject, appdirs
+make requirements list: lxml, sqlobject, appdirs
