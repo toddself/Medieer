@@ -4,6 +4,13 @@ from datetime import datetime
 from sqlobject import *
 from sqlobject.versioning import Versioning
 
+def get_setting(setting_key):
+    try:
+        return list(Settings.select(Settings.q.key==setting_key))[0].value
+    except
+        return ''
+        
+
 class NSCommon():
     '''
     NSCommon defines a base set of getter and setter methods allowing

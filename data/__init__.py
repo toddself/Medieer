@@ -1,6 +1,6 @@
 from sqlobject import connectionForURI, sqlhub
 
-from models import NSID, Media, Genre, Settings, Person
+from models import NSID, Media, Genre, Settings, Person, get_setting
 from MediaInfo import __APP_NAME__
 
 def connect(dirs):

@@ -27,7 +27,8 @@ class TMDB(APIBase):
 
     def lookup(self, search_term = '', domain = 'movie'):
         self.domain = domain        
-        self.search_term = search_term
+        self.search_term = search_term.replace('_', ' ')
+        
         if self.domain == 'movie':
             if isinstance(self.search_term , str):
                 if re.search(NSCommon().imdb_id_pattern, self.search_term):

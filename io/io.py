@@ -2,7 +2,7 @@ import os
 from os.path import join as fjoin
 from urllib2 import urlopen
 
-from sqlobject import SQLNotFoundError
+from sqlobject import SQLObjectNotFound
 
 from data import Settings
 
@@ -33,10 +33,10 @@ def fn_to_parts(fn):
     (base_filename, file_ext) = full_filename.rsplit('.', 1)
     return (path, base_filename, file_ext)
     
-def get_basepath():
+def get_basepath(default_path):
     try:
-        basepath = list(Settings.select(Settings.q.key=='video_root'))[0]
-    except SQLNotFoundError:
+        os.stat(default_path)
+    except SQLObjectNotFound:
         basepath = os.getcwd()
     
     return basepath 
