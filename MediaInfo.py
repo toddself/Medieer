@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+import os, sys
 import argparse
 
 from appdirs import AppDirs
@@ -18,22 +18,20 @@ class MediaInfo():
     
     def __init__(self, args):
         parser = argparse.ArgumentParser(description='Manage video metadata.')
-        
-        # TODO: 
-        # CONVERT THE ADD OPTIONS TO ARGPARSE FORMAT
-        # ALLOW FOR THE SETTING/CHANGING OF SETTINGS FROM COMMAND LINE
-        parser.add_option('-r', '--rename-files', action='store_false', dest='rename', 
-                default=True, help='Rename media files to match titles')
-        parser.add_option('-n', '--no-gui', action='store_false', dest='nogui', 
-                default=True, help="Don't launch GUI; perform XML update via console")
-        parser.add_option(-'f', '--choose-first', action='store_true', dest='first',
-                default=False, help="If movie matches more than one result, choose first from list.")
-        parser.add_option('-d', '--directory', action="store", dest='basepath',
-                default='', help='Provide the default directory for video storage.')
-        parser.add_option('s', '--show-defaults', action="store_true", dest='show_defaults',
+        parser.add_argument('-s', '--show-defaults', action="store_true", dest='show_defaults',
                 default=False, help='Show all application settings')
-                
-        (self.options, self.args) = parser.parse_args()  
+        parser.add_argument('-r', '--rename-files', action='store_false', dest='rename', 
+                default=True, help='Rename media files to match titles')
+        parser.add_argument('-n', '--no-gui', action='store_false', dest='nogui', 
+                default=True, help="Don't launch GUI; perform XML update via console")
+        parser.add_argument(-'f', '--choose-first', action='store_true', dest='first',
+                default=False, help="If movie matches more than one result, choose first from list.")       
+        parser.add_argument('-d', '--directory', dest='basepath',
+                default='', help='Provide the default directory for video storage.')
+        parser.add_argument('-c', '--change-setting', dest='settings', default=''.
+                help='Change a setting. Example: --change-setting basepath=/etc/videos')
+
+        self.options = parser.parse_args()
 
         self.db_filelocation = fjoin(self.dirs.user_data_dir, self.db_fn)
         
@@ -54,7 +52,11 @@ class MediaInfo():
     def init_app(self):
         # make user data directory
         if not os.path.isdir(dirs.user_data_dir):
-            os.makedirs(dirs.user_data_dir)
+            try:
+                os.makedirs(dirs.user_data_dir)
+            except OSError:
+                print 'Unable to create directory %s. Please verify you have permissions to create this path.' % dirs.user_data_dir
+                sys.exit(1)
         
         # now we can open a connection to the database, creating the file
         # at the same time
@@ -80,10 +82,19 @@ class MediaInfo():
         # key: organization_method
         # options: directory or videoxml
         # this dictates how file organziation will work, if it's selected
-        # and what type of XML file is output by the two default generators
+        # and what type of XML file is output by the two default generator
+        # directory will generate a master xml manifest
+        # videoxml will generate a bunch of small files
         s = data.Settings(key='organization_method', value='directory') 
         
-        # key: basepath
+        # key: organize_by_genre
+        # options: true or false
+        # this dictates whether or not videos are located in subdirectories
+        # according to genre.  uses the first genre in the list, which
+        # we consider to be the 'main' genre
+        s = data.Settings(key='organize_by_genre', value='true')
+        
+        # key: dest_path
         # options: any valid directory
         # this option determines where the system will check for video files
         # as a default, and to where the additional generated files will be
@@ -92,11 +103,16 @@ class MediaInfo():
         os.stat(dirs.site_data_dir)
         try:
             os.makedirs(dirs.site_data_dir)
-            basepath = dirs.site_data_dir
+            dest_path = dirs.site_data_dir
         except OSError:
-            os.makedirs(dirs.user_data_dir)
-            basepath = dirs.user_data_dir
-        s = data.Settings(key='basepath', value=basepath)
+            dest_path = dirs.user_data_dir
+        s = data.Settings(key='dest_path', value=dest_path)
+    
+        # key: basepath
+        # options: any valid directory
+        # this option dictates where input files will be found.
+        # defaults to the dest_path
+        s = data.Settings(key='basepath', value=dest_path)
         
 
     def process_files(self):
@@ -105,62 +121,86 @@ class MediaInfo():
         
         for videofile in filelist:
             try:
+                # this means we know about the video, so we can skip querying
+                # the apis to find out what video it is.
                 video = data.Media.select(Media.q.file_URI==videofile)
             except SQLObjectNotFound:
-                (path, video_filename, ext) = io.fn_to_parts(videofile)    
-                movies = t.lookup(video_filename)
-                if len(movies) > 1 and not self.options.first:
+                (path, video_filename, ext) = io.fn_to_parts(videofile)
+                if data.Media.media_types[data.Media.MOVIES] in path:
+                    results = t.lookup(video_filename)
+                else:
+                    # TODO: TV SHOW API RETRIEVAL
+                    # i'm a tv show and i don't know what to do yet!
+                    pass
+                    
+                if len(results) > 1 and not self.options.first:
+                    # TODO: SELECTING OPTIONS FROM MULTIMOVIE MATCH
                     # need to present user with a text-mode choice interface
                     # if more than one movie matches the query
                     pass
                 else:
-                    movie = movies[0]
+                    result = results[0]
 
                 video = data.Media()
-                video.fromAPIMedia(movie)
+                video.fromAPIMedia(result)
                 
-                org_type = data.get_setting('organization_method')
+            org_type = data.get_setting('organization_method')
+                
+            # should we organize?
+            if self.option.rename:
+                path = data.get_setting('dest_path')
+                if video.media_type.lower() not in path and org_type == 'videoxml':
+                    path = fjoin(path, video.media_type.lower())
                     
-                if self.option.rename:
-                    video_filename = '%(title)s.%(ext)s' % {'title': video.title, 'ext': ext}
-                    os.rename(videofile, io.generate_filename(path, video_filename, ext))
+                if eval(data.get_setting('organize_by_genre').capitalize()):
+                    path = fjoin(path, video.genres[0])
+                    
+                video_filename = video.title
+                os.rename(videofile, io.generate_filename(path, video_filename, ext))
+                video.file_URI = io.generate_filename(path, video_filename, ext)
+            else:
+                video.file_URI = videofile
+            
+            # process the image for the video            
+            try:
+                os.stat(video.poster_local_URI)
+            except OSError:
+                poster_dest = io.generate_filename(path, video.title, 'jpg')
+                try:
+                    io.download_file(video.poster_local_URI, poster_dest)
+                except OSError
+                    print "Can't open %s for writing." % poster_dest
+                    sys.exit(1)
+                video.poster_local_URI = poster_dest
+            except SQLObjectNotFound:
+                # TODO: ADD DEFAULT IMAGE FOR GENRE/MEDIA_TYPE
+                # there was no image available from the data api so we'll 
+                # just skip.
+                pass
                 
 
-                # TODO
-                # FINISH FILE PROCESSOR
-                # GENERATE XML
-                # GRAB POSTER IMAGE
-                # UPDATE MEDIA OBJECT
                     
+            if org_type == 'videoxml':
+                xml_filename = io.generate_filename(path, video.title, 'xml')
+                try:
+                    os.stat(xml_filename)
+                except OSError:
+                    x = gen.VideoXML()
+                    x.makeVideoXML(video)
+                    try:
+                        with file(xml_filename, 'r') as xf:
+                            xf.write(x.toxml)
+                    except OSError:
+                        print "Can't open %s for writing." % xml_filename
+                        sys.exit(1)
                     
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-            #     self.movie = self.tmdb.getMovieInfoByName(self.movie_fn_base)
-            #     if self.options.rename:
-            #         self.new_movie_fn_base = self.movie.title
-            #         os.rename(fn_video, self.make_filename(self.movie_path, self.new_movie_fn_base, self.movie_fn_extn))
-            #         self.movie_fn_base = self.new_movie_fn_base
-            # 
-            #     self.fn_xml = self.make_filename(self.movie_path, self.movie_fn_base, 'xml')
-            #     self.fn_image = self.make_filename(self.movie_path, self.movie_fn_base, 'jpg')            
-            # except TMDBNotFoundError:
-            #     print self.movie_name, "not found"
-            # else:            
-            #     if not self.file_exists(self.fn_xml):
-            #         if not self.generate_xml():
-            #             print "ERROR: Couldn't create file: %s" % self.fn_xml
-            #             sys.exit(1)
-            #     if not self.file_exists(self.fn_image):
-            #         if not self.generate_image():
-            #             print "ERROR: Couldn't create file: %s" % self.fn_image
-            #             sys.exit(2)            
-
+        if org_type == 'directory':
+            x = gen.VideoXML()
+            x.makeVideoDirectory(list(Media.select()))
+            try:
+                output_path = data.get_setting('dest_path')
+                with file(io.generate_filename(output_path, 'video', 'xml')) as xf:
+                    xf.write(x.toxml())
 
 if __name__ == '__main__':
     mi = MediaInfo()
