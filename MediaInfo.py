@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import os, sys
 import argparse
+from os.path import join as fjoin
 
 from appdirs import AppDirs
 from sqlobject.declarative import DeclarativeMeta
 from sqlobject import SQLObjectNotFound
 
-import io, data, gen, api
+import fs, data, gen, api
 
 __APP_NAME__ = 'MediaInfo'
 __APP_AUTHOR__ = 'Todd'
@@ -15,6 +16,7 @@ __VERSION__ = '0.10'
 class MediaInfo():
     db_fn = '%s.sqlite' % __APP_NAME__
     dirs = AppDirs(__APP_NAME__, __APP_AUTHOR__, version=__VERSION__)
+    connection = False
     
     def __init__(self, args):
         parser = argparse.ArgumentParser(description='Manage video metadata.')
@@ -22,49 +24,55 @@ class MediaInfo():
                 default=False, help='Show all application settings')
         parser.add_argument('-r', '--rename-files', action='store_false', dest='rename', 
                 default=True, help='Rename media files to match titles')
-        parser.add_argument('-n', '--no-gui', action='store_false', dest='nogui', 
-                default=True, help="Don't launch GUI; perform XML update via console")
-        parser.add_argument(-'f', '--choose-first', action='store_true', dest='first',
+        parser.add_argument('-n', '--no-gui', action='store_true', dest='nogui', 
+                default=False, help="Don't launch GUI; perform XML update via console")
+        parser.add_argument('-f', '--choose-first', action='store_true', dest='first',
                 default=False, help="If movie matches more than one result, choose first from list.")       
         parser.add_argument('-d', '--directory', dest='basepath',
                 default='', help='Provide the default directory for video storage.')
-        parser.add_argument('-c', '--change-setting', dest='settings', default=''.
+        parser.add_argument('-c', '--change-setting', dest='settings', default='',
                 help='Change a setting. Example: --change-setting basepath=/etc/videos')
 
         self.options = parser.parse_args()
 
         self.db_filelocation = fjoin(self.dirs.user_data_dir, self.db_fn)
         
-        if not os.stat(db_filelocation):
+        try:
+            os.stat(self.db_filelocation)
+        except OSError:
             self.init_app()
         
-        if not self.connection:
+        if not self.connected():
             self.open_db()
 
-        if options.nogui:
+        if self.options.nogui:
             self.process_files()
         else:
             self.launch_gui()        
+            
+    def connected(self):
+        if not self.connection:
+            self.open_db()
 
     def open_db(self):
         self.connection = data.connect(self.db_filelocation)
 
     def init_app(self):
         # make user data directory
-        if not os.path.isdir(dirs.user_data_dir):
+        if not os.path.isdir(self.dirs.user_data_dir):
             try:
-                os.makedirs(dirs.user_data_dir)
+                os.makedirs(self.dirs.user_data_dir)
             except OSError:
                 print 'Unable to create directory %s. Please verify you have permissions to create this path.' % dirs.user_data_dir
                 sys.exit(1)
         
         # now we can open a connection to the database, creating the file
         # at the same time
-        if not self.connection:
+        if not self.connected():
             self.open_db()
         
         # make tables
-        for cname in data:
+        for cname in dir(data):
             cl = eval('data.%s' % cname)
             if isinstance(cl, DeclarativeMeta):
                 if not cl.tableExists():
@@ -72,7 +80,7 @@ class MediaInfo():
                     
         # import genre data
         self.t = api.TMDB()
-        genres = t.lookup(domain='genres')
+        genres = self.t.lookup(domain='genres')
         for genre in genres:
             g = data.Genre()
             g.fromAPIGenre(genre)
@@ -99,13 +107,17 @@ class MediaInfo():
         # this option determines where the system will check for video files
         # as a default, and to where the additional generated files will be
         # stored.  
-        # attempts to store in a site-wide data location.
-        os.stat(dirs.site_data_dir)
+        # attempts to store in a site-wide data location.'
         try:
-            os.makedirs(dirs.site_data_dir)
-            dest_path = dirs.site_data_dir
+            os.stat(self.dirs.site_data_dir)
+            dest_path = self.dirs.site_data_dir            
         except OSError:
-            dest_path = dirs.user_data_dir
+            try:
+                os.makedirs(self.dirs.site_data_dir)
+                dest_path = self.dirs.site_data_dir
+            except OSError:
+                dest_path = self.dirs.user_data_dir
+                
         s = data.Settings(key='dest_path', value=dest_path)
     
         # key: basepath
@@ -117,15 +129,16 @@ class MediaInfo():
 
     def process_files(self):
         self.t = api.TMDB()
-        filelist = io.make_list(io.get_basepath(data.get_setting('basepath')))
+        filelist = fs.make_list(fs.get_basepath(data.get_setting('basepath')))
+        org_type = data.get_setting('organization_method')
         
         for videofile in filelist:
             try:
                 # this means we know about the video, so we can skip querying
                 # the apis to find out what video it is.
-                video = data.Media.select(Media.q.file_URI==videofile)
+                video = data.Media.select(data.Media.q.file_URI==videofile)
             except SQLObjectNotFound:
-                (path, video_filename, ext) = io.fn_to_parts(videofile)
+                (path, video_filename, ext) = fs.fn_to_parts(videofile)
                 if data.Media.media_types[data.Media.MOVIES] in path:
                     results = t.lookup(video_filename)
                 else:
@@ -144,11 +157,12 @@ class MediaInfo():
                 video = data.Media()
                 video.fromAPIMedia(result)
                 
-            org_type = data.get_setting('organization_method')
+            
                 
             # should we organize?
-            if self.option.rename:
+            if self.options.rename:
                 path = data.get_setting('dest_path')
+                print video
                 if video.media_type.lower() not in path and org_type == 'videoxml':
                     path = fjoin(path, video.media_type.lower())
                     
@@ -156,8 +170,8 @@ class MediaInfo():
                     path = fjoin(path, video.genres[0])
                     
                 video_filename = video.title
-                os.rename(videofile, io.generate_filename(path, video_filename, ext))
-                video.file_URI = io.generate_filename(path, video_filename, ext)
+                os.rename(videofile, fs.generate_filename(path, video_filename, ext))
+                video.file_URI = fs.generate_filename(path, video_filename, ext)
             else:
                 video.file_URI = videofile
             
@@ -165,10 +179,10 @@ class MediaInfo():
             try:
                 os.stat(video.poster_local_URI)
             except OSError:
-                poster_dest = io.generate_filename(path, video.title, 'jpg')
+                poster_dest = fs.generate_filename(path, video.title, 'jpg')
                 try:
-                    io.download_file(video.poster_local_URI, poster_dest)
-                except OSError
+                    fs.download_file(video.poster_local_URI, poster_dest)
+                except OSError:
                     print "Can't open %s for writing." % poster_dest
                     sys.exit(1)
                 video.poster_local_URI = poster_dest
@@ -181,7 +195,7 @@ class MediaInfo():
 
                     
             if org_type == 'videoxml':
-                xml_filename = io.generate_filename(path, video.title, 'xml')
+                xml_filename = fs.generate_filename(path, video.title, 'xml')
                 try:
                     os.stat(xml_filename)
                 except OSError:
@@ -194,13 +208,15 @@ class MediaInfo():
                         print "Can't open %s for writing." % xml_filename
                         sys.exit(1)
                     
-        if org_type == 'directory':
+        if org_type == 'directory' and len(filelist) > 0:
             x = gen.VideoXML()
             x.makeVideoDirectory(list(Media.select()))
             try:
                 output_path = data.get_setting('dest_path')
-                with file(io.generate_filename(output_path, 'video', 'xml')) as xf:
+                with file(fs.generate_filename(output_path, 'video', 'xml')) as xf:
                     xf.write(x.toxml())
+            except:
+                pass
 
 if __name__ == '__main__':
-    mi = MediaInfo()
+    mi = MediaInfo(sys.argv[1:])

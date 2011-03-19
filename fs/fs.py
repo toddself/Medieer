@@ -11,8 +11,10 @@ def make_list(basepath):
     videos = []
     for root, dirs, files in os.walk(basepath):
         for name in files:
-            if name.split('.')[-1] in self.allowed_extensions:
-                self.videos.append(fjoin(root,name))
+            if name.split('.')[-1] in allowed_extensions:
+                videos.append(fjoin(root,name))
+                
+    return videos
 
 def download_file(URL, dest):
     if "http" not in URL[:4]:
@@ -36,7 +38,8 @@ def fn_to_parts(fn):
 def get_basepath(default_path):
     try:
         os.stat(default_path)
+        basepath = default_path
     except SQLObjectNotFound:
         basepath = os.getcwd()
     
-    return basepath 
+    return basepath

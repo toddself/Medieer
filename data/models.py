@@ -7,9 +7,8 @@ from sqlobject.versioning import Versioning
 def get_setting(setting_key):
     try:
         return list(Settings.select(Settings.q.key==setting_key))[0].value
-    except
+    except:
         return ''
-        
 
 class NSCommon():
     '''
