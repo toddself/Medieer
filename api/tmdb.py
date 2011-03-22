@@ -3,7 +3,7 @@ import json
 import re
 
 from apibase import *
-from data.models import NSCommon
+from data.models import NSCommon, Media
 
 class TMDB(APIBase):
     path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'
@@ -27,7 +27,8 @@ class TMDB(APIBase):
 
     def lookup(self, search_term = '', domain = 'movie'):
         self.domain = domain        
-        self.search_term = search_term
+        self.search_term = search_term.replace('_', ' ')
+        
         if self.domain == 'movie':
             if isinstance(self.search_term , str):
                 if re.search(NSCommon().imdb_id_pattern, self.search_term):
@@ -79,6 +80,8 @@ class TMDB(APIBase):
         movie.director = self.getPerson(d.get('cast', []), 'director')
         movie.ids = [{'ns': 'tmdb', 'value': d.get('id', 0)}, {'ns': 'imdb', 'value': d.get('imdb_id', 'tt0000000')}]
         movie.poster_url = self.getPoster(d.get('posters', []))
+        movie.media_type = Media.MOVIES
+        movie.franchise = ''
         
         return [movie,]
         

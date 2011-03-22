@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>api/tmdb.py</string>
+	<string>MediaInfo.py</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -39,6 +39,8 @@
 			<string>fsmon</string>
 		</dict>
 		<dict>
+			<key>expanded</key>
+			<true/>
 			<key>name</key>
 			<string>gen</string>
 			<key>regexFolderFilter</key>
@@ -48,15 +50,32 @@
 		</dict>
 		<dict>
 			<key>filename</key>
-			<string>main.py</string>
+			<string>MediaInfo.py</string>
 			<key>lastUsed</key>
+<<<<<<< HEAD
 			<date>2011-03-11T16:45:31Z</date>
+=======
+			<date>2011-03-19T20:41:04Z</date>
+			<key>selected</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>expanded</key>
+			<true/>
+			<key>name</key>
+			<string>fs</string>
+			<key>regexFolderFilter</key>
+			<string>!.*/(\.[^/]*|CVS|_darcs|_MTN|\{arch\}|blib|.*~\.nib|.*\.(framework|app|pbproj|pbxproj|xcode(proj)?|bundle))$</string>
+			<key>sourceDirectory</key>
+			<string>fs</string>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 		</dict>
 	</array>
 	<key>fileHierarchyDrawerWidth</key>
 	<integer>200</integer>
 	<key>metaData</key>
 	<dict>
+<<<<<<< HEAD
 		<key>api/apibase.py</key>
 		<dict>
 			<key>caret</key>
@@ -72,58 +91,108 @@
 			<integer>47</integer>
 		</dict>
 		<key>api/tmdb.py</key>
+=======
+		<key>MediaInfo.py</key>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
+<<<<<<< HEAD
 				<integer>21</integer>
 				<key>line</key>
 				<integer>93</integer>
+=======
+				<integer>27</integer>
+				<key>line</key>
+				<integer>164</integer>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
+<<<<<<< HEAD
 			<integer>42</integer>
+=======
+			<integer>132</integer>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 		</dict>
-		<key>data/__init__.py</key>
+		<key>api/tmdb.py</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
+<<<<<<< HEAD
 				<integer>48</integer>
+=======
+				<integer>54</integer>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 				<key>line</key>
-				<integer>6</integer>
+				<integer>29</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>0</integer>
+			<integer>35</integer>
 		</dict>
 		<key>data/models.py</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
+<<<<<<< HEAD
 				<integer>11</integer>
 				<key>line</key>
 				<integer>140</integer>
+=======
+				<integer>0</integer>
+				<key>line</key>
+				<integer>11</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
+			<integer>161</integer>
+		</dict>
+		<key>fs/fs.py</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>38</integer>
+				<key>line</key>
+				<integer>13</integer>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+<<<<<<< HEAD
 			<integer>128</integer>
+=======
+			<integer>0</integer>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 		</dict>
 	</dict>
 	<key>openDocuments</key>
 	<array>
+		<string>MediaInfo.py</string>
 		<string>data/models.py</string>
+<<<<<<< HEAD
 		<string>api/tmdb.py</string>
 		<string>api/apibase.py</string>
 		<string>data/__init__.py</string>
+=======
+		<string>fs/fs.py</string>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 	</array>
 	<key>showFileHierarchyDrawer</key>
 	<false/>
 	<key>windowFrame</key>
+<<<<<<< HEAD
 	<string>{{6, 13}, {1387, 860}}</string>
+=======
+	<string>{{112, 109}, {1307, 901}}</string>
+>>>>>>> cfca7679342705853d9480a891494bd9c16d984f
 </dict>
 </plist>

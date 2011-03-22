@@ -4,6 +4,12 @@ from datetime import datetime
 from sqlobject import *
 from sqlobject.versioning import Versioning
 
+def get_setting(setting_key):
+    try:
+        return list(Settings.select(Settings.q.key==setting_key))[0].value
+    except:
+        return ''
+
 class NSCommon():
     '''
     NSCommon defines a base set of getter and setter methods allowing
@@ -24,9 +30,9 @@ class NSCommon():
         setattr(n, self.__class__.__name__, self)
     
     def _get_id(self, ns):
-        return list(NSID.select(AND(NSID.q.ns==ns, getattr(NSID.q, self.__class__.__name__)==self)))[0].value
+        return list(NSID.select(AND(NSID.q.ns==ns, getattr(NSID.q, self.__class__.__name__.lower())==self)))[0].value
         
-    def _set_tmdb_id(self, value):
+    def set_tmdb_id(self, value):
         if isinstance(value, int):
             tmdb_id = str(value)
         else:
@@ -38,7 +44,7 @@ class NSCommon():
         
         self._set_id(NSID.TMDB, tmdb_id)
         
-    def _set_imdb_id(self, value):
+    def set_imdb_id(self, value):
         if isinstance(value, str):
             import re
             if re.search(self.imdb_id_pattern, value):
@@ -50,16 +56,16 @@ class NSCommon():
         
         self._set_id(NSID.IMDB, imdb_id)
         
-    def _set_tvdb_id(self, value):
+    def set_tvdb_id(self, value):
         self._set_id(NSID.TVDB, str(value))
         
-    def _get_tmdb_id(self):
+    def get_tmdb_id(self):
         return self._get_id(NSID.TMDB)
 
-    def _get_imdb_id(self):
+    def get_imdb_id(self):
         return self._get_id(NSID.IMDB)
     
-    def _get_tvdb_id(self):
+    def get_tvdb_id(self):
         return self._get_id(NSID.TVDB)
 
 class Person(SQLObject, NSCommon):
@@ -147,6 +153,10 @@ class Media(SQLObject, NSCommon):
     TVMA = 14
     ratings = ['G', 'NC-17', 'PG', 'PG-13', 'R', 'UR', 'UNRATED', 'NR', 'TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA']
     
+    MOVIES = 0
+    TV = 1
+    media_types = ['Movies', 'TV']
+    
     nsids = MultipleJoin('NSID')    
     title = UnicodeCol(length=255, default='')
     released = DateTimeCol(default=datetime.now())
@@ -159,6 +169,8 @@ class Media(SQLObject, NSCommon):
     poster_remote_URI = UnicodeCol(default='')
     poster_local_URI = UnicodeCol(default='')
     file_URI = UnicodeCol(default='')
+    media_type = IntCol(default=MOVIES)
+    franchise = UnicodeCol(default='', length=255)
     
     def fromAPIMedia(self, APIMedia):
         self.title = APIMedia.title
@@ -167,9 +179,11 @@ class Media(SQLObject, NSCommon):
         self.description = APIMedia.description
         self.poster_remote_URI = APIMedia.poster_url
         self.runtime = APIMedia.runtime
+        self.media_type = APIMedia.media_type
         d = Person()
         d.fromAPIPerson(APIMedia.director[0])
-        self.director = d    
+        self.director = d
+        self.franchise = APIMedia.franchise
         
         for nsid in APIMedia.ids:
             n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
@@ -183,6 +197,14 @@ class Media(SQLObject, NSCommon):
             g = Genre()
             g.fromAPIGenre(genre)
             self.addGenre(g)
+    
+    def _set_media_type(self, value):
+        if isinstance(value, int) and value < len(self.media_types):
+            self._SO_set_media_type(value)
+        elif value in self.media_types:
+            self._SO_set_media_type(self.media_types.index(value))
+        else:
+            raise ValueError('%s is not a valid media type' % value)
         
     def _get_rating(self):
         return self.ratings[self._SO_get_rating()]
@@ -200,11 +222,37 @@ class Media(SQLObject, NSCommon):
             self._SO_set_released(value)
         else:
             try:
-                d = datetime.strptime(value, '%Y-%m-%d').date()
+                d = datetime.strptime(value, '%Y-%m-%d')
                 self._SO_set_released(d)
             except ValueError:
                 raise ValueError('%s is not in the form of %%Y-%%m-%%d' % value)
-            
+                
+    def _get_media_type(self):
+        return self.media_types[self._SO_get_media_type()]
+                
+    def listActors(self):
+        actors = []
+        for actor in self.actors:
+            actors.append(actor.name)
+        
+        return actors
+        
+    def listGenres(self, prepend_media_type=True):
+        genres = []
+        for genre in self.genres:
+            if prepend_media_type:
+                g = "[%s/%s]" % (self.media_type, genre.name)
+            else:
+                g = genre.name
+            genres.append(g)
+        
+        return genres
+    
+    def _get_codec(self):
+        if self.file_URI:
+            return self.file_URI.rsplit('.', 1)[1]
+        else:
+            return ''
             
     def __str__(self):
         return self.title
