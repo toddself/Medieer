@@ -9,13 +9,13 @@ from sqlobject import SQLObjectNotFound
 
 import fs, data, gen, api
 
-__APP_NAME__ = 'MediaInfo'
-__APP_AUTHOR__ = 'Todd'
-__VERSION__ = '0.10'
+appname = 'MediaInfo'
+appauthor = 'Todd'
+version = '0.10'
 
 class MediaInfo():
-    db_fn = '%s.sqlite' % __APP_NAME__
-    dirs = AppDirs(__APP_NAME__, __APP_AUTHOR__, version=__VERSION__)
+    db_fn = '%s.sqlite' % appname
+    dirs = AppDirs(appname, appauthor, version=version)
     connection = False
     
     def __init__(self, args):
