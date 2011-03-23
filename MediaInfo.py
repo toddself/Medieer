@@ -55,7 +55,7 @@ class MediaInfo():
             self.open_db()
 
     def open_db(self):
-        self.connection = data.connect(self.db_filelocation)
+        self.connection = data.connect(self.db_filelocation, appname)
 
     def init_app(self):
         # make user data directory
@@ -215,7 +215,7 @@ class MediaInfo():
                 output_path = data.get_setting('dest_path')
                 with file(fs.generate_filename(output_path, 'video', 'xml')) as xf:
                     xf.write(x.toxml())
-            except:
+            except: 
                 pass
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
 from sqlobject import connectionForURI, sqlhub
 
 from models import NSID, Media, Genre, Settings, Person, get_setting
-from MediaInfo import appname
-def connect(db_filelocation):
+
+def connect(db_filelocation, appname):
     db_driver = 'sqlite'
     connection_string = "%s://%s" % (db_driver, db_filelocation)
     connection = connectionForURI(connection_string)
