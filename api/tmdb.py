@@ -14,6 +14,9 @@ class TMDB(APIBase):
     output = 'json'
     api = 'tmdb'
     
+    def __init__(self, debug=False):
+        self.debug = debug
+    
     def getAPIMethod(self, domain, method):
         calledAPI = "%s.%s" % (domain.capitalize(), method)
         return calledAPI
@@ -26,14 +29,24 @@ class TMDB(APIBase):
                 'apikey': self.apikey,}
 
     def lookup(self, search_term = '', domain = 'movie'):
-        self.domain = domain        
-        self.search_term = search_term.replace('_', ' ')
+        self.domain = domain
+        
+        if isinstance(search_term, str):
+            self.search_term = search_term.replace('_', ' ')
+        else:
+            self.search_term = search_term
+        
+        if self.debug:
+            print "Parsed search term: ", self.search_term
         
         if self.domain == 'movie':
             if isinstance(self.search_term , str):
                 if re.search(NSCommon().imdb_id_pattern, self.search_term):
                     self.method = 'imdbLookup'
+                    if self.debug:
+                        print "IMDB ID recieved: ", self.search_term
                 else:
+                    print "Movie Name received: ", self.search_term
                     self.method = 'search'
             else:
                 self.method = 'getInfo'
@@ -41,6 +54,9 @@ class TMDB(APIBase):
             self.method = 'getList'
         else:
             raise ValueError('API not implemented for %s' % self.domain)
+
+        if self.debug:
+            print "Method: ", self.method
             
         self.api_method = self.getAPIMethod(self.domain, self.method)
         path = self.path_format % self.pathParams()
@@ -50,8 +66,13 @@ class TMDB(APIBase):
         movies = self.parseResponse(self.method)
 
         if self.method == 'search' and self.domain == 'movie':
+            if self.debug:
+                print 'We looked up the IDs for these movies:'
+                print movies
             info = []
             for movie_id in movies:
+                if self.debug:
+                    print "Looking up: ", movie_id
                 info.append(self.lookup(movie_id)[0])
             return info
         
@@ -65,14 +86,23 @@ class TMDB(APIBase):
         return api_data
     
     def imdbLookupParser(self, api_data):
+        if self.debug:
+            print "In imdbLookupParser"
         return self.getInfoParser(api_data)
 
     def getInfoParser(self, api_data):
+        if self.debug:
+            print "In getInfoParser"
+    
         d = api_data[0]
+
+        if self.debug:
+            print d['released']
+            
         movie = APIMedia()
         movie.title = d.get('name', '')
         movie.description = d.get('overview', '')
-        movie.released = d.get('released', '')
+        movie.released = d.get('released', '2010-06-23')
         movie.runtime = d.get('runtime', '')
         movie.rating = d.get('certification', 'NR')
         movie.genres = self.getGenres(d.get('genres',[]))
@@ -86,6 +116,8 @@ class TMDB(APIBase):
         return [movie,]
         
     def searchParser(self, api_data):
+        if self.debug:
+            print "In searchParser"
         ids = []
         for d in api_data:
             ids.append(d.get('id', 0))
@@ -93,6 +125,8 @@ class TMDB(APIBase):
         return ids
     
     def getListParser(self, api_data):
+        if self.debug:
+            print "In getListParser"
         genres = self.getGenres(api_data[1:])
         return genres
         
@@ -122,11 +156,17 @@ class TMDB(APIBase):
     def getPoster(self, poster_list):
         poster_url = ''
         for image in poster_list:
+            if self.debug:
+                print "Looping through images"
             poster = image.get('image', {})
             if poster.get('size', '') == 'cover' and poster.get('url', False):
                 poster_url = poster.get('url')
+                if self.debug:
+                    print "Got an image: ", poster_url
             
             if not poster_url and poster.get('size', None) == 'mid' and poster.get('url', False):
                 poster_url = poster.get('url')
+                if self.debug:
+                    print "Got an image: ", poster_url                
         
         return poster_url

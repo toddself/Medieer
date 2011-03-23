@@ -20,11 +20,11 @@ class APIMedia():
         for k in kw.keys():
             setattr(self, k, kw[k])
             
-    def __str__(self):
-        return self.title
-        
-    def __repr__(self):
-        return self.title
+    # def __str__(self):
+    #      return self.title
+    #      
+    #  def __repr__(self):
+    #      return self.title
     
 class APIGenre():
     name = u''
