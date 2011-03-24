@@ -2,6 +2,7 @@
 import os, sys
 import argparse
 from os.path import join as fjoin
+import re
 
 from appdirs import AppDirs
 from sqlobject.declarative import DeclarativeMeta
@@ -17,6 +18,7 @@ class MediaInfo():
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor, version=version)
     connection = False
+    title_parser = re.compile('^(.*)\ s(\d+)e(\d+).*$', re.I)    
     
     def __init__(self, args):
         parser = argparse.ArgumentParser(description='Manage video metadata.')
@@ -164,6 +166,13 @@ class MediaInfo():
         
     def lookup_tv(self, video_filename):
         self.results = []
+        
+    def parse_show_title(self, title_string):
+        title_string = title_string.replace('_', ' ')
+        try:
+            return re.match(self.title_parser, title_string).groups()
+        except AttributeError:
+            raise AttributeError('%s does not match form of SERIES S?E?' % title_string)        
         
     def resolve_multiple_results(self, video_filename):
         print "Multiple matches were found for %s" % video_filename
