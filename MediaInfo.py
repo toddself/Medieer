@@ -83,8 +83,8 @@ class MediaInfo():
                     cl.createTable()
                     
         # import genre data
-        self.t = api.TMDB()
-        genres = self.t.lookup(domain='genres')
+        t = api.TMDB()
+        genres = t.lookup(domain='genres')
         for genre in genres:
             g = data.Genre()
             g.fromAPIGenre(genre)
@@ -124,7 +124,7 @@ class MediaInfo():
         #     except OSError:
         #         dest_path = self.dirs.user_data_dir
         
-        dest_path="/tmp/testdata/"
+        dest_path="/tmp/media_info_testdata"
                 
         s = data.Settings(key='dest_path', value=dest_path)
     
@@ -134,154 +134,196 @@ class MediaInfo():
         # defaults to the dest_path
         s = data.Settings(key='basepath', value=dest_path)
         
+    def exists_in_db(self, videofile):
+        try:
+            # this means we know about the video, so we can skip querying
+            # the apis to find out what video it is.
+            if self.options.debug:
+                print "Looking up file URI: ", videofile
+
+            self.video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
+
+            if self.options.debug:
+                print "Found video: ", self.video
+
+            self.video_ext = videofile.rsplit('.', 1)[1]
+            return True            
+            
+        except IndexError:
+            if self.options.debug:
+                print "Video not found"
+            
+            return False
+            
+    def lookup_movie(self, video_filename):
+        t = api.TMDB(debug=self.options.debug)
+        if self.options.debug:
+            print "This is a movie, trying to lookup %s via tmdb" % video_filename
+
+        self.results = t.lookup(video_filename)
+        
+    def lookup_tv(self, video_filename):
+        self.results = []
+        
+    def resolve_multiple_results(self, video_filename):
+        print "Multiple matches were found for %s" % video_filename
+        for x in range(len(self.results)):
+            print "%s. %s" % (x+1, self.results[x].title)
+            
+        selection = raw_input('Selection [1]: ')                  
+        
+        try:
+            selected = int(selection)-1
+        except ValueError:
+            selected = 0
+            
+        if self.options.debug:
+            print "Index selected: ", selected
+
+        return selected
+        
+    def organize_file(self, videofile):
+            self.path = data.get_setting('dest_path')
+
+            if self.options.debug:
+                print "Path: ", self.path
+
+            if self.video.media_type.lower() not in self.path:
+                self.path = fjoin(self.path, self.video.media_type.lower())
+                if self.options.debug:
+                    print "Missing media type in path. New path: ", self.path
+
+            if eval(data.get_setting('organize_by_genre').capitalize()):
+                self.path = fjoin(self.path, self.video.genres[0].name)
+                if self.options.debug:
+                    print "Organizing by Genre. New path: ", self.path
+
+            # path determination done, lets make sure it exists
+            if not os.path.isdir(self.path):
+                try:
+                    os.makedirs(self.path)
+                except OSError:
+                    print "You don't have permissions to write to %" % self.path
+                    sys.exit(1)
+
+            if self.options.debug:
+                print "Filename: ", self.video.title
+
+            video_destination = fs.generate_filename(self.path, self.video.title, self.video_ext)
+
+            if self.options.debug:
+                print "Destination: ", video_destination
+
+            os.rename(videofile, video_destination)
+
+            return video_destination
+        
+    def generate_image(self):
+        try:
+            os.stat(self.video.poster_local_URI)
+        except OSError:
+            poster_dest = fs.generate_filename(self.path, self.video.title, 'jpg')
+            try:
+                if self.options.debug:
+                    print "Source: ", self.video.poster_remote_URI
+                    print "Dest: ", poster_dest
+                fs.download_file(self.video.poster_remote_URI, poster_dest)
+            except OSError:
+                print "Can't open %s for writing." % poster_dest
+                sys.exit(1)
+                
+            self.video.poster_local_URI = poster_dest        
+    
+    def generate_videoxml(self):
+        xml_filename = fs.generate_filename(self.path, self.video.title, 'xml')
+        try:
+            os.stat(xml_filename)
+        except OSError:
+            x = gen.VideoXML()
+            x.makeVideoXML(self.video)
+            try:
+                with file(xml_filename, 'w') as xf:
+                    xf.write(x.toxml)
+            except OSError:
+                print "Can't open %s for writing." % xml_filename
+                sys.exit(1)
+    
+    def generate_video_directory(self):
+        x = gen.VideoXML()
+        x.makeVideoDirectory(list(data.Media.select()))
+        try:
+            output_path = data.get_setting('dest_path')
+            with file(fs.generate_filename(output_path, 'video', 'xml'), 'w') as xf:
+                xf.write(x.toxml())
+        except OSError:
+            print "FUCK!"
+            sys.exit(1)
 
     def process_files(self):
-        self.t = api.TMDB(debug=self.options.debug)
         filelist = fs.make_list(fs.get_basepath(data.get_setting('basepath')))
         org_type = data.get_setting('organization_method')
         
         for videofile in filelist:
-            try:
-                # this means we know about the video, so we can skip querying
-                # the apis to find out what video it is.
-                if self.options.debug:
-                    print "Looking up file URI: ", videofile
-                video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
-                if self.options.debug:
-                    print "Found video: ", video
-
-                ext = videofile.rsplit('.', 1)[1]
-            except IndexError:
-                if self.options.debug:
-                    print "Entry not found in database, retrieving from a series of tubes"
-                (path, video_filename, ext) = fs.fn_to_parts(videofile)
-                if self.options.debug:
-                    print "Checking to see if directory named Movies exists"
-                if data.Media.media_types[data.Media.MOVIES] in path:
-                    if self.options.debug:
-                        print "Found Movies directory, trying to look up movies"
-                        print "Looking up: ", video_filename
-                    results = self.t.lookup(video_filename)
+            if not self.exists_in_db(videofile):
+                (path, video_filename, self.video_ext) = fs.fn_to_parts(videofile)
                     
+                # what are we looking up? tv? movie?
+                if data.Media.media_types[data.Media.MOVIES].lower() in path.lower():
+                    self.lookup_movie(video_filename)
+                elif data.Media.media_types[data.Media.TV].lower() in path.lower():
+                    self.lookup_tv(video_filename)
                 else:
-                    # TODO: TV SHOW API RETRIEVAL
-                    # i'm a tv show and i don't know what to do yet!
-                    pass
-                    
-                if len(results) > 1 and not self.options.first and self.options.nogui:
-                    print "Multiple matches were found for %s" % video_filename
-                    for x in range(len(results)):
-                        print "%s. %s" % (x+1, results[x].title)
-                        
-                    selection = raw_input('Selection [1]: ')                  
-                    
-                    try:
-                        selected = int(selection)-1
-                    except ValueError:
-                        selected = 0
-                        
-                    if self.options.debug:
-                        print "Index selected: ", selected
-                        
-                    result = results[selected]
-
-                    if self.options.debug:
-                        print "Result: ", result.title
-                else:
-                    result = results[0]
-
-                video = data.Media()
-                video.fromAPIMedia(result)
-                
-            # should we organize?
-            if self.options.rename:
-                if self.options.debug:
-                    print "Organizing files"
-                path = data.get_setting('dest_path')
-                
-                if self.options.debug:
-                    print "Path: ", path
-                
-                if video.media_type.lower() not in path:
-                    path = fjoin(path, video.media_type.lower())
-                    if self.options.debug:
-                        print "Missing media type in path. New path: ", path
-                    
-                if eval(data.get_setting('organize_by_genre').capitalize()):
-                    path = fjoin(path, video.genres[0].name)
-                    if self.options.debug:
-                        print "Organizing by Genre. New path: ", path
-                        
-                # path determination done, lets make sure it exists
-                if not os.path.isdir(path):
-                    try:
-                        os.makedirs(path)
-                    except OSError:
-                        print "You don't have permissions to write to %" % path
-                        sys.exit(1)
-
-                video_filename = video.title
-                
-                if self.options.debug:
-                    print "Filename: ", video_filename
-                    
-                
-                video_destination = fs.generate_filename(path, video_filename, ext)
-                
-                if self.options.debug:
-                    print "Destination: ", video_destination
-                
-                os.rename(videofile, video_destination)
-                video.file_URI = fs.generate_filename(path, video_filename, ext)
-            else:
-                video.file_URI = videofile
-            
-            # process the image for the video            
-            try:
-                os.stat(video.poster_local_URI)
-            except OSError:
-                poster_dest = fs.generate_filename(path, video.title, 'jpg')
-                try:
-                    if self.options.debug:
-                        print "Source: ", video.poster_remote_URI
-                        print "Dest: ", poster_dest
-                    fs.download_file(video.poster_remote_URI, poster_dest)
-                except OSError:
-                    print "Can't open %s for writing." % poster_dest
+                    print "Sorry, I can't figure out how your video files are organized"
                     sys.exit(1)
-                video.poster_local_URI = poster_dest
-                
-            except SQLObjectNotFound:
-                # TODO: ADD DEFAULT IMAGE FOR GENRE/MEDIA_TYPE
-                # there was no image available from the data api so we'll 
-                # just skip.
-                pass
-                
+                    
+                # were there multiple results for this?    
+                if len(self.results) > 1 and not self.options.first:
+                    selected = self.resolve_multiple_results(video_filename)
+                    result = self.results[selected]
+                    process_vid = True
+                elif len(self.results) == 1:
+                    result = self.results[0]
+                    process_vid = True
+                else:
+                    if self.options.debug:
+                        print "No matches, skipping file"
+                    process_vid = False
 
-                    
-            if org_type == 'videoxml':
-                xml_filename = fs.generate_filename(path, video.title, 'xml')
+                if process_vid:
+                    if self.options.debug:
+                        print "Result: ", result.title                            
+
+                    self.video = data.Media()
+                    self.video.fromAPIMedia(result)
+            else:
+                process_vid = True
+
+            if process_vid:
+                # should we organize?
+                if self.options.rename:
+                    self.video.file_URI = self.organize_file(videofile)
+                else:
+                    self.video.file_URI = videofile    
+
+                # process the image for the video            
+                self.generate_image()
+
+                # process the xml for the video if we're making individual
+                # videofiles.  if not, we'll process it all at the end
+                if org_type == 'videoxml':
+                    self.generate_videoxml()
+
                 try:
-                    os.stat(xml_filename)
-                except OSError:
-                    x = gen.VideoXML()
-                    x.makeVideoXML(video)
-                    try:
-                        with file(xml_filename, 'r') as xf:
-                            xf.write(x.toxml)
-                    except OSError:
-                        print "Can't open %s for writing." % xml_filename
-                        sys.exit(1)
-                    
-        if org_type == 'directory' and len(filelist) > 0:
-            x = gen.VideoXML()
-            x.makeVideoDirectory(list(Media.select()))
-            try:
-                output_path = data.get_setting('dest_path')
-                with file(fs.generate_filename(output_path, 'video', 'xml')) as xf:
-                    xf.write(x.toxml())
-            except: 
-                pass
+                    del self.results
+                    del result
+                    del self.video
+                except AttributeError:
+                    pass
+    
+        # we are going to generate a master video xml file containing all
+        # entries
+        if org_type == 'directory':
+            self.generate_video_directory()
 
 if __name__ == '__main__':
     mi = MediaInfo(sys.argv[1:])

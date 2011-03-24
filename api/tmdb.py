@@ -81,7 +81,7 @@ class TMDB(APIBase):
     def parseResponse(self, method):
         self.json_data = json.loads(self._response_data)
         if "Nothing found" in self.json_data:
-            raise APIError("No information found for ")
+            raise APIError("No information found for %s" % self.search_term)
         api_data = eval('self.%sParser' % method)(self.json_data)
         return api_data
     
@@ -95,10 +95,6 @@ class TMDB(APIBase):
             print "In getInfoParser"
     
         d = api_data[0]
-
-        if self.debug:
-            print d['released']
-            
         movie = APIMedia()
         movie.title = d.get('name', '')
         movie.description = d.get('overview', '')
@@ -156,17 +152,11 @@ class TMDB(APIBase):
     def getPoster(self, poster_list):
         poster_url = ''
         for image in poster_list:
-            if self.debug:
-                print "Looping through images"
             poster = image.get('image', {})
             if poster.get('size', '') == 'cover' and poster.get('url', False):
                 poster_url = poster.get('url')
-                if self.debug:
-                    print "Got an image: ", poster_url
             
             if not poster_url and poster.get('size', None) == 'mid' and poster.get('url', False):
                 poster_url = poster.get('url')
-                if self.debug:
-                    print "Got an image: ", poster_url                
         
         return poster_url
