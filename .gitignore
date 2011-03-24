@@ -1,2 +1,4 @@
+*~
 *.pyc
+*.tmproj
 *.sqlite
