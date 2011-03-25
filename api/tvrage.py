@@ -1,7 +1,4 @@
-import re
-from StringIO import StringIO
-
-from lxml import objectify
+from BeautifulSoup import BeautifulStoneSoup
 from apibase import *
 from data.models import NSCommon, Media
 
@@ -62,35 +59,64 @@ class TVDB(APIBase):
         return serials
     
     def parseResponse(self, method):
-        self.data_dict = objectify.fromstring(self._response_data).__dict__
-        if len(self.data_dict) < 1:
-            raise APIError("No information found for %s" % series)
-        api_data = eval('self.%sParser' % method)(self.data_dict)
+        self.soup = BeautifulStoneSoup(self._response_data)
+        api_data = eval('self.%sParser' % method)(self.soup)
         return api_data
         
-    def searchParser(self, dd):
+    def searchParser(self, soup):
         if self.debug:
             print "In searchParser"
         
         ids = []
-        for 
-        pass
+        try:
+            for show in soup.findAll('shows'):
+                ids.append(int(show.showid.text))
+        except IndexError:
+            raise APIError('No matches found for %s' % self.series)
         
     def episodeinfoParser(self):
-        pass
+        if self.debug:
+            print 'In episodeinfoParser'
         
-    def showinfoParser(self, dd):
+        e = APIMedia()
+        e.title = soup.show.episode.title.text
+        e.description = soup.show.episode.summary
+        e.runtime = int(soup.show.runtime.text)
+        e.director = u''
+        e.rating = data.Media.NONE
+        e.poster_url = u''
+        e.released = soup.show.episode.airdate
+        e.media_type = data.Media.TV
+        e.franchise = int(soup.show.attrs[0][1])
+        (season, episode) = soup.show.episode.number.text.split('x')
+        e.season_number = int(season)
+        e.episode_number = int(episode)
+        e.ids = [{'ns': 'tvrage_episode', 'value': soup.show.episode.number.text},]
+        genres = []
+        for genre in soup.findAll('genre'):
+            g = APIGenre()
+            g.name = genre.text
+            genres.append(g)
+        e.genres = genres
+        e.actors = []
+        
+        return [e,]
+
+    def showinfoParser(self, soup):
         if self.debug:
             print 'In showinfoParser'
-            
-        series = APISeries()
-        series.name = dd.get('showname', '')
-        series.ids = [{'ns': 'tvrage', 'value': int(dd.get('showid', 0)),]
-        series.description = dd.get('summary', '')
-        series.image_url = dd.get('image', '')
         
-        return series
+        s = APISeries()
+        s.name = soup.showinfo.showname
+        s.description = soup.showinfo.summary
+        s.image_url = soup.showinfo.image
+        s.ids = [{'ns': 'tvrage_series', 'value': soup.showinfo.showid},]
+
+        return [s, ]
 
         
     def episode_listParser(self):
+        if self.debug:
+            print "In episode_listParser"
+            
         pass

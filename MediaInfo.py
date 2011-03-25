@@ -15,6 +15,11 @@ appauthor = 'Todd'
 version = '0.10'
 
 class MediaInfo():
+    #TODO: ENABLE ABILITY TO SHOW/SET ATTRIBUTES
+    #TODO: RE-ENABLE DIRECTORY STRUCTURES
+    #TODO: ADD MORE QUESTIONS TO FIRST RUN
+    #TODO: IMPLEMENT PYTHON LOGGIN
+    #TODO: TEST --choose-first
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor, version=version)
     connection = False
@@ -228,6 +233,7 @@ class MediaInfo():
             return video_destination
         
     def generate_image(self):
+        # TODO: IMPLEMENT ABILITY TO USE FRANCHISE IMAGE FOR TV SHOWS
         try:
             os.stat(self.video.poster_local_URI)
         except OSError:

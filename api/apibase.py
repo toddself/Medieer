@@ -21,6 +21,8 @@ class APIMedia():
     released = ''
     media_type = ''
     franchise = ''
+    episode_number = ''
+    season_number = ''
     
     def __init__(self, **kw):
         for k in kw.keys():
