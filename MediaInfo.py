@@ -28,8 +28,6 @@ class MediaInfo():
                 default=False, help="Don't launch GUI; perform XML update via console")
         parser.add_argument('-f', '--choose-first', action='store_true', dest='first',
                 default=False, help="If movie matches more than one result, choose first from list.")       
-        parser.add_argument('-d', '--directory', dest='basepath',
-                default='', help='Provide the default directory for video storage.')
         parser.add_argument('-c', '--change-setting', dest='settings', default='',
                 help='Change a setting. Example: --change-setting basepath=/etc/videos')
         parser.add_argument('--debug', dest='debug', action='store_true', default=False)
