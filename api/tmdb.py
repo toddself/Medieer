@@ -14,9 +14,6 @@ class TMDB(APIBase):
     output = 'json'
     api = 'tmdb'
     
-    def __init__(self, debug=False):
-        self.debug = debug
-    
     def getAPIMethod(self, domain, method):
         calledAPI = "%s.%s" % (domain.capitalize(), method)
         return calledAPI
@@ -46,7 +43,8 @@ class TMDB(APIBase):
                     if self.debug:
                         print "IMDB ID recieved: ", self.search_term
                 else:
-                    print "Movie Name received: ", self.search_term
+                    if self.debug:
+                        print "Movie Name received: ", self.search_term
                     self.method = 'search'
             else:
                 self.method = 'getInfo'

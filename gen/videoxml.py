@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from lxml import etree
 
+# TODO: SWITCH TO BEAUTIFULSOUP IF POSSIBLE
+
 class VideoXML():
     def __init__(self):
         pass

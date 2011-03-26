@@ -2,6 +2,12 @@
 from urllib2 import urlopen, HTTPError
 from urllib import quote_plus
 
+class APISeries():
+    name = ''
+    ids = []
+    description = ''
+    image_url = ''
+
 class APIMedia():
     title = ''
     genres = []
@@ -15,16 +21,18 @@ class APIMedia():
     released = ''
     media_type = ''
     franchise = ''
+    episode_number = ''
+    season_number = ''
     
     def __init__(self, **kw):
         for k in kw.keys():
             setattr(self, k, kw[k])
             
-    # def __str__(self):
-    #      return self.title
-    #      
-    #  def __repr__(self):
-    #      return self.title
+    def __str__(self):
+         return self.title
+         
+     def __repr__(self):
+         return self.title
     
 class APIGenre():
     name = u''
@@ -54,15 +62,15 @@ class APIPerson():
         
 class APIBase():
     lang = 'en'
+        
+    def __init__(self, debug=False):
+        self.debug = debug
     
-    def __init__(self):
-        pass
-    
-    def _hasLeadingSlash(self, term):
+    def _hasLeadingChar(self, chr, term):
         try:
             if len(term) > 0:
                 try:
-                    term.index('/')
+                    term.index(chr)
                 except ValueError:
                     return False
                 else:
@@ -72,15 +80,18 @@ class APIBase():
         except:
             return False
         
-    def makeURL(self, path, term=''):
-        if not self._hasLeadingSlash(term):
-            term = '/%s' % term
+    def makeURL(self, path, term='', sep_char = '/'):
+        if not self._hasLeadingChar(sep_char, term):
+            term = '%s%s' % (sep_char, term)
         
         self.url = "%(proto)s://%(host)s%(path)s%(term)s" % \
                     {'proto': self.protocol,
                      'host': self.host,
                      'path': path,
                      'term': quote_plus(term)}
+                     
+        if self.debug:
+            print "Generated URL: ", self.url
             
     def getResponse(self):
         if not self.url:

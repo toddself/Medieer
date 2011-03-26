@@ -23,7 +23,8 @@ class NSCommon():
     '''
     
     imdb_id_pattern = 't{2}\d{7}$'
-    tmdb_id_pattern = '^\d+$'
+    tvdb_id_pattern = tvrage_series_id_pattern = tmdb_id_pattern = '^\d+$'
+    tvrage_episode_id_pattern = '^\d{1,3}x\d{1,3}$'
     
     def _set_id(self, ns, value):
         n = NSID(ns=NSID.sites.index(ns), value=str(value))
@@ -58,9 +59,15 @@ class NSCommon():
         
     def set_tvdb_id(self, value):
         self._set_id(NSID.TVDB, str(value))
+
+    def set_tvrage_id(self, value):
+        self._set_id(NSID.TVRAGE, str(value))        
         
     def get_tmdb_id(self):
         return self._get_id(NSID.TMDB)
+
+    def get_tvrage_id(self):
+        return self._get_id(NSID.TVRAGE)
 
     def get_imdb_id(self):
         return self._get_id(NSID.IMDB)
@@ -107,13 +114,16 @@ class NSID(SQLObject):
     TMDB = 0
     IMDB = 1
     TVDB = 2
-    sites = ["tmdb", "imdb", "tvdb"]
+    TVRAGE_SERIES = 3
+    TVRAGE_EPISODE = 4
+    sites = ["tmdb", "imdb", "tvdb", "tvrage_series", "tvrage_episode"]
     
     ns = IntCol(default=TMDB)
     value = UnicodeCol(default='')
     person = ForeignKey('Person', default=0)
     media = ForeignKey('Media', default=0)
     genre = ForeignKey('Genre', default=0)
+    series = ForeignKey('Series', default=0)
     
     def _get_ns(self):
         return self.sites[self._SO_get_ns()]
@@ -134,6 +144,21 @@ class NSID(SQLObject):
     
     def __str__(self):
         return "%s: %s" % (self.sites.index(self.ns), self.value)
+        
+class Series(SQLObject, NSCommon):
+    name = UnicodeCol(length=255, default='')
+    nsids = MultipleJoin('NSID')
+    description = UnicodeCol(default='')
+    poster_remote_URI = UnicodeCol(default='')
+    poster_local_URI = UnicodeCol(default='')
+    
+    def fromAPISeries(self, APISeries):
+        self.name = APISeries.name
+        self.description = APISeries.description
+        self.poster_remote_URI = APISeries.image_url
+        
+        for nsid in APISeries.ids:
+            n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
 
 class Media(SQLObject, NSCommon):
     G = 0
@@ -151,7 +176,8 @@ class Media(SQLObject, NSCommon):
     TVPG = 12
     TV14 = 13
     TVMA = 14
-    ratings = ['G', 'NC-17', 'PG', 'PG-13', 'R', 'UR', 'UNRATED', 'NR', 'TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA']
+    NONE = 15
+    ratings = ['G', 'NC-17', 'PG', 'PG-13', 'R', 'UR', 'UNRATED', 'NR', 'TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA', 'None']
     
     MOVIES = 0
     TV = 1
@@ -170,7 +196,9 @@ class Media(SQLObject, NSCommon):
     poster_local_URI = UnicodeCol(default='')
     file_URI = UnicodeCol(default='')
     media_type = IntCol(default=MOVIES)
-    franchise = UnicodeCol(default='', length=255)
+    franchise = ForeignKey('Series', default=0)
+    episode_number = IntCol(default=0)
+    season_number = IntCol(default=0)
     
     def fromAPIMedia(self, APIMedia):
         self.title = APIMedia.title
@@ -184,6 +212,9 @@ class Media(SQLObject, NSCommon):
         d.fromAPIPerson(APIMedia.director[0])
         self.director = d
         self.franchise = APIMedia.franchise
+        self.episode_number = int(APIMedia.episode_number)
+        self.season_number = int(APIMedia.season_number)
+
         
         for nsid in APIMedia.ids:
             n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
