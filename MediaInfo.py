@@ -15,12 +15,15 @@ import fs, data, gen, api
 
 appname = 'MediaInfo'
 appauthor = 'Todd'
-version = '0.10'
+version = '0.50'
 
 class MediaInfo():
     #TODO: ENABLE ABILITY TO SHOW/SET ATTRIBUTES
     #TODO: IMPLEMENT PYTHON LOGGING INSTEAD OF DEBUG PRINTING
     #TODO: IMPLEMENT GUI
+    #TODO: ALLOW FOR MULTIPLE CATEGORIZATIOn
+    #TODO: FIX IMAGES FOR EPISODES IN A CATEGORY
+    #TODO: FIX FILENAMES FOR EPISODES IN A CATEGORY
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor, version=version)
     connection = False
