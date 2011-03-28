@@ -1,0 +1,9 @@
+INSTALL
+-------
+
+tar xzvf Medieer-0.50.tar.gz
+cd Medieer-0.50
+sudo python setup.py install
+
+Medieer.py -h for help
+Medieer.py -n to run without the gui.

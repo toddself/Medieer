@@ -31,7 +31,8 @@ from sqlobject import SQLObjectNotFound
 import fs, data, gen, api
 
 appname = 'Medieer'
-appauthor = 'Todd Kennedy <todd.kennedy@gmail.com>'
+appauthor = 'Todd Kennedy'
+authoremail = '<todd.kennedy@gmail.com>'
 version = '0.50'
 
 class Medieer():
