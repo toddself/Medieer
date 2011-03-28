@@ -1,10 +1,27 @@
 #!/usr/bin/env python
+# This file is part of Medieer.
+# 
+#     Medieer is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+# 
+#     Medieer is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 import sys
 import shutil
 import argparse
 import re
 import codecs
+import logging
+import logging.handlers
 from os.path import join as fjoin
 
 from appdirs import AppDirs
@@ -13,21 +30,16 @@ from sqlobject import SQLObjectNotFound
 
 import fs, data, gen, api
 
-appname = 'MediaInfo'
-appauthor = 'Todd'
+appname = 'Medieer'
+appauthor = 'Todd Kennedy <todd.kennedy@gmail.com>'
 version = '0.50'
 
-class MediaInfo():
-    #TODO: ENABLE ABILITY TO SHOW/SET ATTRIBUTES
-    #TODO: IMPLEMENT PYTHON LOGGING INSTEAD OF DEBUG PRINTING
-    #TODO: IMPLEMENT GUI
-    #TODO: IMPLEMENT VERSION MIGRATION
-    #TODO: IMPLEMENT IMDB LOOKUP
-    #TODO: IMPLEMENT TVDB LOOKUP
-    #TODO: FIX CAPITALIZATION
-    #TODO: FIX IMAGE NAMING CONVENTION
-    #TODO: PREFIX EPISODE NUMBER TO TV SHOWS FOR PROPER SORTING
-    #TODO: ALLOW FOR MULTIPLE CATEGORIZATIOn
+class Medieer():
+    #TODO VERSION 1.0: IMPLEMENT GUI
+    #TODO VERSION 1.0: IMPLEMENT VERSION MIGRATION
+    #TODO VERSION 1++: IMPLEMENT IMDB LOOKUP
+    #TODO VERSION 1++: IMPLEMENT TVDB LOOKUP
+    #TODO VERSION 1++: ALLOW FOR MULTIPLE CATEGORIZATION -- need to see if symlinks are acceptableT
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor, version=version)
     connection = False
@@ -41,30 +53,84 @@ class MediaInfo():
                 default=False, help="Don't launch GUI; perform XML update via console")
         parser.add_argument('-f', '--choose-first', action='store_true', dest='first',
                 default=False, help="If movie matches more than one result, choose first from list.")       
-        parser.add_argument('-c', '--change-setting', dest='settings', default='',
-                help='Change a setting. Example: --change-setting basepath=/etc/videos')
-        parser.add_argument('--debug', dest='debug', action='store_true', default=False)
+        parser.add_argument('-c', '--change-setting', nargs=1, dest='new_setting', default='',
+                help='Change a setting. Example: --change-setting source_path=/etc/videos')
+        parser.add_argument('--debug', nargs=1, dest='debug',
+                help="Set logging level (most info -> least info)[DEBUG|INFO|WARN|ERROR|CRIT]")
+        parser.add_argument('--migrate-database', dest='migrate', action='store_true', 
+                default=False, help="Migrate database between versions")
 
         self.options = parser.parse_args(args)
-
+        self.init_data_dir()
+        
         if self.options.debug:
-            print self.options
+            self.configure_log(self.options.debug[0])
+        else:
+            self.configure_log('info')
 
         self.db_filelocation = fjoin(self.dirs.user_data_dir, self.db_fn)
         
         try:
             os.stat(self.db_filelocation)
         except OSError:
+            self.logger.info('No db found, assuming fresh install')
             self.init_app()
         
         if not self.connected():
             self.open_db()
+            
+        # lets figure out what the user wants to do now
+        if self.options.show_defaults:
+            settings = list(data.Settings.select())
+            value_width = max([len(setting.value) for setting in settings])
+            key_width = max([len(setting.key) for setting in settings])
+            header = "Setting".ljust(key_width)+"\t"+"Value".ljust(value_width)
+            print "\n" + header + "\n" + "-" * len("Setting".ljust(key_width)) + "\t" + "-" * len("Value".ljust(value_width))
+            for setting in settings:
+                print setting.key.ljust(key_width)+"\t"+setting.value.ljust(value_width)
+            print
+            sys.exit(0)
+
+        if self.options.new_setting:
+            (new_key, new_value) = self.options.new_setting[0].split('=')
+            try:
+                s = list(data.Settings.select(data.Settings.q.key==new_key))[0]
+            except IndexError:
+                self.logger.critical("%s is not a valid key" % new_key)
+                print "%s is not a valid key.  Use --show-defaults to see valid settings to changeself." % new_key
+                sys.exit(1)
+            else:
+                s.value = new_value
+                sys.exit(0)
+
+        if self.options.migrate:
+            print "Not implemented"
+            sys.exit(0)
 
         if self.options.nogui:
+            self.logger.info('No gui passed, processing files')
             self.process_files()
         else:
+            self.logger.info('Launching gui')
             self.launch_gui()        
             
+    def configure_log(self, level):
+        LOG_FILENAME = fjoin(self.dirs.user_data_dir, "%s.log" % appname)
+        self.levels = {'debug': logging.DEBUG,
+                       'info': logging.INFO,
+                       'warn': logging.WARNING,
+                       'error': logging.ERROR,
+                       'crit': logging.CRITICAL}
+               
+        self.logger = logging.getLogger(appname)
+        log_level = self.levels.get(level.lower(), logging.NOTSET)
+        self.logger.setLevel(log_level)
+        handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024000, backupCount=5)
+        handler.setLevel(log_level)
+        log_format = logging.Formatter('[%(asctime)s] %(name)s:%(levelname)s %(message)s')
+        handler.setFormatter(log_format)
+        self.logger.addHandler(handler)
+    
     def connected(self):
         if not self.connection:
             self.open_db()
@@ -83,13 +149,14 @@ class MediaInfo():
                     os.makedirs(path)
                     path_ready = True
                 except OSError:
+                    self.logger.warning("Can't create: %s" % path)
                     print "Error: can't create %s" % path   
             else:
                 path_ready = True
         return path     
         
 
-    def init_app(self):
+    def init_data_dir(self):
         # make user data directory
         if not os.path.isdir(self.dirs.user_data_dir):
             try:
@@ -97,7 +164,8 @@ class MediaInfo():
             except OSError:
                 print 'Unable to create directory %s. Please verify you have permissions to create this path.' % dirs.user_data_dir
                 sys.exit(1)
-        
+                
+    def init_app(self):        
         # now we can open a connection to the database, creating the file
         # at the same time
         if not self.connected():
@@ -108,34 +176,36 @@ class MediaInfo():
             cl = eval('data.%s' % cname)
             if isinstance(cl, DeclarativeMeta):
                 if not cl.tableExists():
+                    self.logger.info("SETUP: Creating table %s" % cname)
                     cl.createTable()
                     
         # import genre data
-        t = api.TMDB()
+        self.logger.info("SETUP: Getting default genre data")
+        t = api.TMDB(log=self.logger)
         genres = t.lookup(domain='genres')
         for genre in genres:
             g = data.Genre()
             g.fromAPIGenre(genre)
 
         # set default settings
-        org_method = raw_input('Catalog files by directory or XML Manifest? [DIR/xml]')
+        org_method = raw_input('Catalog files by directory or XML Manifest? [XML/dir] ')
         if org_method == '':
-            org_method = 'dir'
-        master_org = raw_input('Should I organize your files for you? [Y/n]')
+            org_method = 'xml'
+        master_org = raw_input('Should I organize your files for you? [Y/n] ')
         if master_org == '':
             master_org = 'y'
-        movie_genre = raw_input('Do you wish to organize movies by genre? [Y/n]')
+        movie_genre = raw_input('Do you wish to organize movies by genre? [Y/n] ')
         if movie_genre == '':
             movie_genre = 'y'
-        tv_series_genre = raw_input('Should I organize TV by genre? [y/N]')
+        tv_series_genre = raw_input('Should I organize TV by genre? [y/N] ')
         if tv_series_genre == '':
             tv_series_genre = 'n'
-        tv_series_org = raw_input('Should I organize television by series and season? [Y/n]')
+        tv_series_org = raw_input('Should I organize television by series and season? [Y/n] ')
         if tv_series_org == '':
             tv_series_org = 'y'
-        source_path = self._check_path('Where are your media files located?', self.dirs.site_data_dir)
+        source_path = self._check_path('Where are your media files located? ', self.dirs.site_data_dir)
         if master_org == 'y':
-            dest_path = self._check_path('Where should I place your organized files', self.dirs.site_data_dir)
+            dest_path = self._check_path('Where should I place your organized files? ', self.dirs.site_data_dir)
         
         # key: organization_method
         # options: directory or videoxml
@@ -150,7 +220,7 @@ class MediaInfo():
         
         # key: master_org
         # options: true or false
-        # this dictates whether or not MediaInfo.organize_files() is called
+        # this dictates whether or not Medieer.organize_files() is called
         if master_org == 'y':
             s = data.Settings(key='master_org', value='true')
         else:
@@ -197,39 +267,26 @@ class MediaInfo():
         try:
             # this means we know about the video, so we can skip querying
             # the apis to find out what video it is.
-            if self.options.debug:
-                print "Looking up file URI: ", videofile
-
+            self.logger.debug("Looking up file URI: %s" % videofile)
             self.video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
-
-            if self.options.debug:
-                print "Found video: ", self.video.title.encode('ascii', 'replace').decode('ascii')
-
+            self.logger.debug("Found video: %s" % self.video.title.encode('ascii', 'replace').decode('ascii'))
             self.video_ext = videofile.rsplit('.', 1)[1]
             return True            
             
         except IndexError:
-            if self.options.debug:
-                print "Video not found"
-            
+            self.logger.debug("Video not found")
             return False
             
     def lookup_movie(self, video_filename):
-        t = api.TMDB(debug=self.options.debug)
-        if self.options.debug:
-            print "This is a movie, trying to lookup %s via tmdb" % video_filename
-
+        t = api.TMDB(log=self.logger)
+        self.logger.debug("This is a movie, trying to lookup %s via tmdb" % video_filename)
         self.results = t.lookup(video_filename)
         
     def lookup_tv(self, video_filename):
-        tvr = api.TVRage(debug=self.options.debug)
-        if self.options.debug:
-            print "This is a TV Show, trying to lookup %s via tvrage" % video_filename
-            
+        tvr = api.TVRage(log=self.logger)
+        self.logger.debug("This is a TV Show, trying to lookup %s via tvrage" % video_filename)
         (series_name, season, episode) = self.parse_show_title(video_filename)
-        
         series = self.get_series(series_name, tvr, video_filename)
-
         self.results = tvr.lookup(series_id=series.get_tvrage_series_id(), season=season, episode=episode)
         
     def get_series(self, series_name, tvr, video_filename):
@@ -248,6 +305,7 @@ class MediaInfo():
         elif len(series) == 1 or self.options.first:
             selected_series = series[0]
         else:
+            self.logger.info("Sorry, nothing matches series %s" % series_name)
             print "Sorry, nothing matches series %s" % series_name
             
         if not isinstance(selected_series, data.Series):
@@ -262,7 +320,7 @@ class MediaInfo():
         try:
             return re.match(self.title_parser, title_string).groups()
         except AttributeError:
-            raise AttributeError('%s does not match form of SERIES S?E?' % title_string)        
+            self.logger.warn('%s does not match form of SERIES S?E?' % title_string)        
         
     def resolve_multiple_results(self, video_filename, results):
         print "Multiple matches were found for %s" % video_filename
@@ -276,8 +334,7 @@ class MediaInfo():
         except ValueError:
             selected = 0
             
-        if self.options.debug:
-            print "Index selected: ", selected
+        self.logger.debug("Index selected: %" % selected)
 
         return selected
 
@@ -287,6 +344,7 @@ class MediaInfo():
                 os.makedirs(path)
                 return True
             except OSError:
+                self.logger.critical("You don't have permissions to write to %" % path)
                 print "You don't have permissions to write to %" % path
                 sys.exit(1)
         else:
@@ -297,62 +355,63 @@ class MediaInfo():
             movies_by_genre = data.get_setting('movies_by_genre')
             tv_by_genre = data.get_setting('tv_series_by_genre')
             tv_by_series = data.get_setting('tv_series_by_series')
-            
-            if self.options.debug:
-                print "Path: ", self.path
+            self.logger.debug("Path: %s" % self.path)
+            mt = self.video.media_type
+            tv = data.media_types[data.TV]
+            movies = data.media_types[data.MOVIES]
 
-            if self.video.media_type.lower() not in self.path:
-                self.path = fjoin(self.path, self.video.media_type.lower())
-                if self.options.debug:
-                    print "Missing media type in path. New path: ", self.path
+            if self.video.media_type not in self.path:
+                self.path = fjoin(self.path, self.video.media_type)
+                self.logger.debug("Missing media type in path. New path: %s" % self.path)
                 
-            if self.video.media_type == data.media_types[data.MOVIES]:
-                if self.options.debug:
-                    print "MOVIES"
+            if mt == movies:
+                self.logger.debug("MOVIES")
                 if movies_by_genre:
                     self.path = fjoin(self.path, self.video.genres[0].name)
-                    if self.options.debug:
-                        print "Organizing movies by genre. New path: ", self.path
+                    self.logger.debug("Organizing movies by genre. New path: %s" % self.path)
                         
-            elif self.video.media_type == data.media_types[data.TV]:
-                if self.options.debug:
-                    print "TV SHOWS"
+            elif mt == tv:
+                self.logger.debug("TV SHOWS")
                 if tv_by_genre:
                     self.path = fjoin(self.path, self.video.genres[0].name)
-                    if self.options.debug:
-                        print 'Organizing TV by genre. New path: ', self.path
+                    self.logger.debug('Organizing TV by genre. New path: %s' % self.path)
                         
                 if tv_by_series:
                     # series level directory
                     self.path = fjoin(self.path, self.video.franchise.name)
                     self._make_path(self.path)
-                    self.folder_poster = self.generate_image(self.path, 'poster.jpg', self.video.franchise.poster_remote_URI)
-                    if self.options.debug:
-                        print "Adding franchise. New path: ", self.path
+                    if self.org_type == 'videoxml':
+                        # for videoxml, the images need to be same name as the
+                        # objects they represent
+                        (image_path, image_filename) = self.path.rsplit('/',1)
+                        self.folder_poster = self.generate_image(image_path, image_filename+".jpg", self.video.franchise.poster_remote_URI)
+                    else:
+                        self.folder_poster = self.generate_image(self.path, 'poster.jpg', self.video.franchise.poster_remote_URI)
+                    self.logger.debug("Adding franchise. New path: %s" % self.path)
                     
                     # season level directory
-                    season = "season %s" % self.video.season_number
+                    season = "Season %s" % self.video.season_number
                     self.path = fjoin(self.path, season)
                     self._make_path(self.path)
-                    if self.folder_poster:
+                    if self.folder_poster and self.org_type == 'videoxml':
+                        image_dest = self.path+".jpg"
+                        shutil.copy2(self.folder_poster, image_dest)
+                    else:
                         shutil.copy2(self.folder_poster, self.path)
                     
-                    if self.options.debug:
-                        print 'Organizing TV by series. New path: ', self.path
+                    self.logger.debug('Organizing TV by series. New path: %s' % self.path)
 
             # path determination done, lets make sure it exists
             self._make_path(self.path)
-
-            if self.options.debug:
-                print "Filename: ", self.video.title
-
-            video_destination = fs.generate_filename(self.path, self.video.title, self.video_ext)
-
-            if self.options.debug:
-                print "Destination: ", video_destination
-
+            self.logger.debug("Filename: %s" % self.video.title)
+            if self.video.media_type == data.media_types[data.TV]:
+                title_filename = "Episode %s: %s" % (self.video.episode_number, self.video.title)
+                self.logger.debug('Adding episode number to title: %s' % title_filename)
+            else:
+                title_filename = self.video.title
+            video_destination = fs.generate_filename(self.path, title_filename, self.video_ext)
+            self.logger.debug("Destination: %s" % video_destination)
             shutil.move(videofile, video_destination)
-
             return video_destination
         
     def generate_image(self, local_path, local_title, remote_url):
@@ -361,22 +420,22 @@ class MediaInfo():
             os.stat(local_file)
         except OSError:
             try:
-                if self.options.debug:
-                    print "Source: ", remote_url
-                    print "Dest: ", local_file
+                self.logger.debug("Source: %s" % remote_url)
+                self.logger.debug("Dest: %s" % local_file)
                 fs.download_file(remote_url, local_file)
             except OSError:
+                self.logger.critical("Can't open %s for writing." % local_file)
                 print "Can't open %s for writing." % local_file
                 sys.exit(1)
                 
             return local_file       
     
     def generate_videoxml(self):
-        xml_filename = fs.generate_filename(self.path, self.video.title, 'xml')
+        xml_filename = fs.generate_filename(self.path, self.get_filename_base(self.video.file_URI), 'xml')
         try:
             os.stat(xml_filename)
         except OSError:
-            x = gen.VideoXML()
+            x = gen.VideoXML(log=self.logger)
             x.makeVideoXML(self.video)
             try:
                 out = file(xml_filename, 'w')
@@ -384,11 +443,12 @@ class MediaInfo():
                 out.write(x.toxml())
                 out.close()
             except OSError:
+                self.logger.critical("Can't open %s for writing." % xml_filename)
                 print "Can't open %s for writing." % xml_filename
                 sys.exit(1)
     
     def generate_video_directory(self):
-        x = gen.VideoXML()
+        x = gen.VideoXML(log=self.logger)
         x.makeVideoDirectory(list(data.Media.select()))
         try:
             output_path = data.get_setting('dest_path')
@@ -398,12 +458,16 @@ class MediaInfo():
             out.write(x.toxml())
             out.close()
         except OSError:
+            self.logger.critical("Can't open %s for writing." % xml_filename)
             print "Sorry I can't write to %s" % output_path
             sys.exit(1)
 
+    def get_filename_base(self, uri):
+        return os.path.split(self.video.file_URI)[1].rsplit('.')[0]
+
     def process_files(self):
         filelist = fs.make_list(fs.get_basepath(data.get_setting('source_path')))
-        org_type = data.get_setting('organization_method')
+        self.org_type = data.get_setting('organization_method')
         
         for videofile in filelist:
             if not self.exists_in_db(videofile):
@@ -415,6 +479,7 @@ class MediaInfo():
                 elif data.Media.media_types[data.Media.TV].lower() in path.lower():
                     self.lookup_tv(video_filename)
                 else:
+                    self.logger.critical("Sorry, I can't figure out how your video files are organized")
                     print "Sorry, I can't figure out how your video files are organized"
                     sys.exit(1)
                     
@@ -427,13 +492,11 @@ class MediaInfo():
                     result = self.results[0]
                     process_vid = True
                 else:
-                    if self.options.debug:
-                        print "No matches, skipping file"
+                    self.logger.debug("No matches, skipping file")
                     process_vid = False
 
                 if process_vid:
-                    if self.options.debug:
-                        print "Result: ", result.title                            
+                    self.logger.debug("Result: %s" % result.title)
 
                     self.video = data.Media()
                     self.video.fromAPIMedia(result)
@@ -448,16 +511,15 @@ class MediaInfo():
                     self.video.file_URI = videofile    
 
                 # process the image for the video
-                poster_filename = "%s.jpg" % self.video.title
+                poster_filename = "%s.jpg" % self.get_filename_base(self.video.file_URI)
                 if self.video.poster_remote_URI:
                     self.generate_image(self.path, poster_filename, self.video.poster_remote_URI)
                 elif self.video.media_type == data.media_types[data.TV] and self.folder_poster:
                     shutil.copy2(self.folder_poster, fjoin(self.path, poster_filename))
-                    
 
                 # process the xml for the video if we're making individual
                 # videofiles.  if not, we'll process it all at the end
-                if org_type == 'videoxml':
+                if self.org_type == 'videoxml':
                     self.generate_videoxml()
 
                 try:
@@ -469,8 +531,8 @@ class MediaInfo():
     
         # we are going to generate a master video xml file containing all
         # entries
-        if org_type == 'directory':
+        if self.org_type == 'directory':
             self.generate_video_directory()
 
 if __name__ == '__main__':
-    mi = MediaInfo(sys.argv[1:])
+    mi = Medieer(sys.argv[1:])

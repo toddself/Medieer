@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+# This file is part of Medieer.
+# 
+#     Medieer is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+# 
+#     Medieer is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
 import json
 import re
 
@@ -33,28 +48,25 @@ class TMDB(APIBase):
         else:
             self.search_term = search_term
         
-        if self.debug:
-            print "Parsed search term: ", self.search_term
+        self.log.debug("Parsed search term: %s" % self.search_term)
         
         if self.domain == 'movie':
             if isinstance(self.search_term , str):
                 if re.search(NSCommon().imdb_id_pattern, self.search_term):
                     self.method = 'imdbLookup'
-                    if self.debug:
-                        print "IMDB ID recieved: ", self.search_term
+                    self.log.debug("IMDB ID recieved: %s" % self.search_term)
                 else:
-                    if self.debug:
-                        print "Movie Name received: ", self.search_term
+                    self.log.debug("Movie Name received: %s" % self.search_term)
                     self.method = 'search'
             else:
                 self.method = 'getInfo'
         elif self.domain == 'genres':
             self.method = 'getList'
         else:
+            self.log.critical('API not implemented for %s' % self.domain)
             raise ValueError('API not implemented for %s' % self.domain)
 
-        if self.debug:
-            print "Method: ", self.method
+        self.log.debug("Method: %s" % self.method)
             
         self.api_method = self.getAPIMethod(self.domain, self.method)
         path = self.path_format % self.pathParams()
@@ -64,13 +76,11 @@ class TMDB(APIBase):
         movies = self.parseResponse(self.method)
 
         if self.method == 'search' and self.domain == 'movie':
-            if self.debug:
-                print 'We looked up the IDs for these movies:'
-                print movies
+            self.log.debug('We looked up the IDs for these movies:')
+            self.log.debug(movies)
             info = []
             for movie_id in movies:
-                if self.debug:
-                    print "Looking up: ", movie_id
+                self.log.debug("Looking up: %s" % movie_id)
                 info.append(self.lookup(movie_id)[0])
             return info
         
@@ -79,18 +89,17 @@ class TMDB(APIBase):
     def parseResponse(self, method):
         self.json_data = json.loads(self._response_data)
         if "Nothing found" in self.json_data:
+            self.log.critical("No information found for %s" % self.search_term)
             raise APIError("No information found for %s" % self.search_term)
         api_data = eval('self.%sParser' % method)(self.json_data)
         return api_data
     
     def imdbLookupParser(self, api_data):
-        if self.debug:
-            print "In imdbLookupParser"
+        self.log.debug("In imdbLookupParser")
         return self.getInfoParser(api_data)
 
     def getInfoParser(self, api_data):
-        if self.debug:
-            print "In getInfoParser"
+        self.log.debug("In getInfoParser")
     
         d = api_data[0]
         movie = APIMedia()
@@ -110,8 +119,7 @@ class TMDB(APIBase):
         return [movie,]
         
     def searchParser(self, api_data):
-        if self.debug:
-            print "In searchParser"
+        self.log.debug("In searchParser")
         ids = []
         for d in api_data:
             ids.append(d.get('id', 0))
@@ -119,8 +127,7 @@ class TMDB(APIBase):
         return ids
     
     def getListParser(self, api_data):
-        if self.debug:
-            print "In getListParser"
+        self.log.debug("In getListParser")
         genres = self.getGenres(api_data[1:])
         return genres
         

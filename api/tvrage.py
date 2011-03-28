@@ -1,3 +1,18 @@
+# This file is part of Medieer.
+# 
+#     Medieer is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+# 
+#     Medieer is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
 from urllib import quote_plus
 
 from BeautifulSoup import BeautifulStoneSoup
@@ -35,11 +50,11 @@ class TVRage(APIBase):
                                                      self.episode)
         
         else:
+            self.log.critical("You must provide enough data to make a query")
             raise AttributeError("You must provide enough data to make a query")
             
         
-        if self.debug:
-            print "Search term: ", self.search_term
+        self.log.debug("Search term: %s" % self.search_term)
             
         path = self.path_format % self.pathParams()
         self.makeURL(path, self.search_term, sep_char = '&')
@@ -48,13 +63,11 @@ class TVRage(APIBase):
         serials = self.parseResponse(self.method)
         
         if self.method == 'search':
-            if self.debug:
-                print "We looked up the IDs for these shows:"
-                print serials
+            self.log.debug("We looked up the IDs for these shows:")
+            self.log.debug(serials)
             info = []
             for series_id in serials:
-                if self.debug:
-                    print 'Looking up: ', series_id
+                self.log.debug('Looking up: %s' % series_id)
                 info.append(self.lookup(series_id=series_id)[0])
             return info
             
@@ -66,21 +79,20 @@ class TVRage(APIBase):
         return api_data
         
     def searchParser(self, soup):
-        if self.debug:
-            print "In searchParser"
+        self.log.debug("In searchParser")
         
         ids = []
         try:
             for show in soup.findAll('show'):
                 ids.append(int(show.showid.text))
         except IndexError:
+            self.log.critcial('No matches found for %s' % self.series)
             raise APIError('No matches found for %s' % self.series)
         
         return ids
         
     def episodeinfoParser(self, soup):
-        if self.debug:
-            print 'In episodeinfoParser'
+        self.log.debug('In episodeinfoParser')
         
         e = APIMedia()
         e.title = soup.show.episode.title.text
@@ -107,8 +119,7 @@ class TVRage(APIBase):
         return [e,]
 
     def showinfoParser(self, soup):
-        if self.debug:
-            print 'In showinfoParser'
+        self.log.debug('In showinfoParser')
         
         s = APISeries()
         try:
@@ -132,8 +143,7 @@ class TVRage(APIBase):
 
         
     def episode_listParser(self, soup):
-        if self.debug:
-            print "In episode_listParser"
+        self.log.debug("In episode_listParser")
             
         pass
         

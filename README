@@ -1,11 +1,8 @@
-Probably a poorly named application since there's already a MediaInfo out there,
-but I digress.
-
 The purpose of this application is to take a directory of video files, organize
-and generate metadata about them using themoviedb.com and thetvdb.com to flesh
+and generate metadata about them using themoviedb.com and tvrage.com to flesh
 out the information
 
-The APIs are meant to be pluggable, so if you wanted to integrate imdb, tvrage,
+The APIs are meant to be pluggable, so if you wanted to integrate imdb, tvdb,
 etc, it would be relatively easy to do.
 
 Requirements:
@@ -14,6 +11,6 @@ Python 2.6 - 2.X
 Python libs:
 SQLObject
 AppDirs
-lxml (perhaps replace with BeautifulSoup)
-wxpython (for gui)
+lxml 
+wxpython
 BeautifulSoup

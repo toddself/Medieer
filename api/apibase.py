@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+# This file is part of Medieer.
+# 
+#     Medieer is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+# 
+#     Medieer is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+# 
+#     You should have received a copy of the GNU General Public License
+#     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
 from urllib2 import urlopen, HTTPError
 from urllib import quote_plus
 
@@ -73,8 +88,8 @@ class APIPerson():
 class APIBase():
     lang = 'en'
         
-    def __init__(self, debug=False):
-        self.debug = debug
+    def __init__(self, log):
+        self.log = log
     
     def _hasLeadingChar(self, chr, term):
         try:
@@ -103,21 +118,23 @@ class APIBase():
                      'path': path,
                      'term': term}
                      
-        if self.debug:
-            print "Generated URL: ", self.url
+        self.log.debug("Generated URL: %s" % self.url)
             
     def getResponse(self):
         if not self.url:
+            self.log.critical('No defined URL to access')
             raise APIError('No defined URL to access')
         
         try:
             self.server_response = urlopen(self.url)
         except HTTPError:
+            self.log.critical("Couldn't open %s for reading" % self.url)
             raise APIError("Couldn't open %s for reading" % self.url)
 
         self._server_msg = self.server_response.msg
         
         if "OK" not in self._server_msg:
+            self.log.critical("Server responded with something I can't handle.")
             raise APIError("Server responded with something I can't handle.")
         else:
             self._response_data = self.server_response.read()
