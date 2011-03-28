@@ -1,14 +1,16 @@
+from urllib import quote_plus
+
 from BeautifulSoup import BeautifulStoneSoup
 from apibase import *
 from data.models import NSCommon, Media
 
-class TVDB(APIBase):
+class TVRage(APIBase):
     apikey = 'SM0w3w3ATTXS3B9OobS9'
     path_format = '/myfeeds/%(api)s.php?key=%(apikey)s'
     protocol = 'http'
     host = 'services.tvrage.com'
 
-    def pathParms(self):
+    def pathParams(self):
         return {'api': self.method,
                 'apikey': self.apikey}
     
@@ -16,7 +18,7 @@ class TVDB(APIBase):
         if title:
             self.title = title
             self.method = 'search'
-            self.search_term = "&show=%s" % self.series
+            self.search_term = "&show=%s" % quote_plus(self.title)
             
         elif series_id and not season and not episode:
             self.series_id = series_id
@@ -26,10 +28,10 @@ class TVDB(APIBase):
         elif series_id and season and episode:
             self.series_id = series_id
             self.episode = episode
-            self.series = series
+            self.season = season
             self.method = 'episodeinfo'
             self.search_term = "&sid=%s&ep=%sx%s" % (self.series_id, 
-                                                     self.series, 
+                                                     self.season, 
                                                      self.episode)
         
         else:
@@ -39,17 +41,17 @@ class TVDB(APIBase):
         if self.debug:
             print "Search term: ", self.search_term
             
-        path = self.path_format % self.pathParams
-        self.makeURL(path, self.search_term)
+        path = self.path_format % self.pathParams()
+        self.makeURL(path, self.search_term, sep_char = '&')
         self.getResponse()
         
         serials = self.parseResponse(self.method)
         
-        if self.method = 'search':
+        if self.method == 'search':
             if self.debug:
                 print "We looked up the IDs for these shows:"
                 print serials
-                info = []
+            info = []
             for series_id in serials:
                 if self.debug:
                     print 'Looking up: ', series_id
@@ -69,25 +71,27 @@ class TVDB(APIBase):
         
         ids = []
         try:
-            for show in soup.findAll('shows'):
+            for show in soup.findAll('show'):
                 ids.append(int(show.showid.text))
         except IndexError:
             raise APIError('No matches found for %s' % self.series)
         
-    def episodeinfoParser(self):
+        return ids
+        
+    def episodeinfoParser(self, soup):
         if self.debug:
             print 'In episodeinfoParser'
         
         e = APIMedia()
         e.title = soup.show.episode.title.text
-        e.description = soup.show.episode.summary
+        e.description = soup.show.episode.summary.text
         e.runtime = int(soup.show.runtime.text)
-        e.director = u''
-        e.rating = data.Media.NONE
+        e.director = []
+        e.rating = Media.NONE
         e.poster_url = u''
-        e.released = soup.show.episode.airdate
-        e.media_type = data.Media.TV
-        e.franchise = int(soup.show.attrs[0][1])
+        e.released = soup.show.episode.airdate.text
+        e.media_type = Media.TV
+        e.franchise = soup.show.find('name').text
         (season, episode) = soup.show.episode.number.text.split('x')
         e.season_number = int(season)
         e.episode_number = int(episode)
@@ -107,16 +111,33 @@ class TVDB(APIBase):
             print 'In showinfoParser'
         
         s = APISeries()
-        s.name = soup.showinfo.showname
-        s.description = soup.showinfo.summary
-        s.image_url = soup.showinfo.image
-        s.ids = [{'ns': 'tvrage_series', 'value': soup.showinfo.showid},]
+        try:
+            s.title = soup.showinfo.showname.text
+        except AttributeError:
+            return None
+        
+        try:
+            s.description = soup.showinfo.summary.text
+        except AttributeError:
+            s.description = ''
+            
+        try:
+            s.image_url = soup.showinfo.image.text
+        except AttributeError:
+            s.image_url = ''
+        
+        s.ids = [{'ns': 'tvrage_series', 'value': int(soup.showinfo.showid.text)},]
 
         return [s, ]
 
         
-    def episode_listParser(self):
+    def episode_listParser(self, soup):
         if self.debug:
             print "In episode_listParser"
             
         pass
+        
+if __name__ == '__main__':
+    tvr = TVRage()
+    series = tvr.lookup("Justified")
+    print series

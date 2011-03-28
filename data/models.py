@@ -6,7 +6,11 @@ from sqlobject.versioning import Versioning
 
 def get_setting(setting_key):
     try:
-        return list(Settings.select(Settings.q.key==setting_key))[0].value
+        setting =  list(Settings.select(Settings.q.key==setting_key))[0].value
+        if setting == 'true' or setting == 'false':
+            return eval(setting.capitalize())
+        else:
+            return setting
     except:
         return ''
 
@@ -59,15 +63,21 @@ class NSCommon():
         
     def set_tvdb_id(self, value):
         self._set_id(NSID.TVDB, str(value))
+    
+    def set_tvrage_episode_id(self, value):
+        self._set_id(NSID.TVRAGE_EPISODE, str(value))
 
-    def set_tvrage_id(self, value):
-        self._set_id(NSID.TVRAGE, str(value))        
+    def set_tvrage_series_id(self, value):
+        self._set_id(NSID.TVRAGE_SERIES, str(value))        
         
     def get_tmdb_id(self):
         return self._get_id(NSID.TMDB)
 
-    def get_tvrage_id(self):
-        return self._get_id(NSID.TVRAGE)
+    def get_tvrage_series_id(self):
+        return self._get_id(NSID.TVRAGE_SERIES)
+        
+    def get_tvrage_episode_id(self):
+        return self._get_id(NSID.TVRAGE_EPISODE)
 
     def get_imdb_id(self):
         return self._get_id(NSID.IMDB)
@@ -150,15 +160,14 @@ class Series(SQLObject, NSCommon):
     nsids = MultipleJoin('NSID')
     description = UnicodeCol(default='')
     poster_remote_URI = UnicodeCol(default='')
-    poster_local_URI = UnicodeCol(default='')
     
     def fromAPISeries(self, APISeries):
-        self.name = APISeries.name
+        self.name = APISeries.title
         self.description = APISeries.description
         self.poster_remote_URI = APISeries.image_url
         
         for nsid in APISeries.ids:
-            n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
+            n = NSID(ns=nsid['ns'], value=nsid['value'], series=self)
 
 class Media(SQLObject, NSCommon):
     G = 0
@@ -208,26 +217,34 @@ class Media(SQLObject, NSCommon):
         self.poster_remote_URI = APIMedia.poster_url
         self.runtime = APIMedia.runtime
         self.media_type = APIMedia.media_type
-        d = Person()
-        d.fromAPIPerson(APIMedia.director[0])
-        self.director = d
-        self.franchise = APIMedia.franchise
+        if APIMedia.franchise:
+            try:
+                franchise = list(Series.select(Series.q.name==APIMedia.franchise))[0]
+            except IndexError:
+                raise AttributeError("The series must exist before an episode can")
+            self.franchise = franchise
         self.episode_number = int(APIMedia.episode_number)
         self.season_number = int(APIMedia.season_number)
-
         
+        if len(APIMedia.director):
+            d = Person()
+            d.fromAPIPerson(APIMedia.director[0])
+            self.director = d
+
         for nsid in APIMedia.ids:
             n = NSID(ns=nsid['ns'], value=nsid['value'], media=self)
         
-        for actor in APIMedia.actors:
-            a = Person()
-            a.fromAPIPerson(actor)
-            self.addActor(a)
-        
-        for genre in APIMedia.genres:
-            g = Genre()
-            g.fromAPIGenre(genre)
-            self.addGenre(g)
+        if len(APIMedia.actors):
+            for actor in APIMedia.actors:
+                a = Person()
+                a.fromAPIPerson(actor)
+                self.addActor(a)
+
+        if len(APIMedia.genres):
+            for genre in APIMedia.genres:
+                g = Genre()
+                g.fromAPIGenre(genre)
+                self.addGenre(g)
     
     def _set_media_type(self, value):
         if isinstance(value, int) and value < len(self.media_types):

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from lxml import etree
+from sqlobject import SQLObjectNotFound
 
 # TODO: SWITCH TO BEAUTIFULSOUP IF POSSIBLE
 
@@ -8,7 +9,7 @@ class VideoXML():
         pass
         
     def toxml(self, pretty=False):
-        return etree.tounicode(self.xml, pretty_print=pretty)
+        return etree.tostring(self.xml, encoding='UTF-8', xml_declaration=False)
         
     def makeVideoXML(self, video):
         self.xml = etree.Element('video')
@@ -26,7 +27,10 @@ class VideoXML():
         mpaa.text = video.rating
 
         director = etree.SubElement(self.xml, 'director')
-        director.text = video.director.name
+        try:
+            director.text = video.director.name
+        except SQLObjectNotFound:
+            director.text = ''
 
         actors = etree.SubElement(self.xml, 'actors')
         actors.text = '     '.join(video.listActors()[:3])
@@ -60,7 +64,10 @@ class VideoXML():
         mpaa.text = 'Rated %s' % video.rating
         
         director = etree.SubElement(movie, 'director')
-        director.text = video.director.name
+        try:
+            director.text = video.director.name
+        except SQLObjectNotFound:
+            director.text = ''
         
         actors = etree.SubElement(movie, 'actors')
         actors.text = '     '.join(video.listActors()[:3])
