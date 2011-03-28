@@ -397,7 +397,7 @@ class Medieer():
                     if self.folder_poster and self.org_type == 'videoxml':
                         image_dest = self.path+".jpg"
                         shutil.copy2(self.folder_poster, image_dest)
-                    else:
+                    elif self.folder_poster:
                         shutil.copy2(self.folder_poster, self.path)
                     
                     self.logger.debug('Organizing TV by series. New path: %s' % self.path)
