@@ -196,7 +196,7 @@ class MediaInfo():
             self.video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
 
             if self.options.debug:
-                print "Found video: ", self.video
+                print "Found video: ", self.video.encode('ascii', 'replace').decode('ascii')
 
             self.video_ext = videofile.rsplit('.', 1)[1]
             return True            
@@ -227,7 +227,8 @@ class MediaInfo():
         
     def get_series(self, series_name, tvr, video_filename):
         # lets see if this series exists
-        series = list(data.Series.select(data.Series.q.name.startswith(series_name.replace('.', ' ').replace('_', ' ')[:10])))
+        lookup_name = series_name.replace('.', ' ').replace('_', ' ')[:8]
+        series = list(data.Series.select(data.Series.q.name.startswith(lookup_name)))
         
         if len(series) == 0:
             series = tvr.lookup(title=series_name)
