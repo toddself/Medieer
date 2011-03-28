@@ -232,7 +232,10 @@ class MediaInfo():
         if len(series) == 0:
             series = tvr.lookup(title=series_name)
         
-        if len(series) > 1:
+        if self.options.first:
+            selected_series = series[0]
+        
+        if len(series) > 1 and not self.options.first:
             selected_series = series[self.resolve_multiple_results(video_filename, series)]
         elif len(series) == 1 or self.options.first:
             selected_series = series[0]
