@@ -15,7 +15,7 @@ import fs, data, gen, api
 
 appname = 'MediaInfo'
 appauthor = 'Todd'
-version = '0.10'
+version = '0.50'
 
 class MediaInfo():
     #TODO: ENABLE ABILITY TO SHOW/SET ATTRIBUTES
@@ -27,6 +27,7 @@ class MediaInfo():
     #TODO: FIX CAPITALIZATION
     #TODO: FIX IMAGE NAMING CONVENTION
     #TODO: PREFIX EPISODE NUMBER TO TV SHOWS FOR PROPER SORTING
+    #TODO: ALLOW FOR MULTIPLE CATEGORIZATIOn
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor, version=version)
     connection = False
