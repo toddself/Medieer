@@ -196,7 +196,7 @@ class MediaInfo():
             self.video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
 
             if self.options.debug:
-                print "Found video: ", self.video.encode('ascii', 'replace').decode('ascii')
+                print "Found video: ", self.video.title.encode('ascii', 'replace').decode('ascii')
 
             self.video_ext = videofile.rsplit('.', 1)[1]
             return True            
