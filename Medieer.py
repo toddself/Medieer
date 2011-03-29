@@ -568,8 +568,8 @@ Nothing else will be done. [y/N]"""
         self.org_type = data.get_setting('organization_method')
         
         for videofile in filelist:
-            if not self.exists_in_db(videofile):
-                original_file_location = videofile
+            original_file_location = videofile
+            if not self.exists_in_db(videofile):                
                 (path, video_filename, self.video_ext) = fs.fn_to_parts(videofile)
                     
                 # what are we looking up? tv? movie?
