@@ -473,9 +473,13 @@ Nothing else will be done. [y/N]"""
                         (image_path, image_filename) = self.path.rsplit('/',1)
                         image_filename += '.jpg'
                         self.folder_poster = self.generate_image(image_path, image_filename, self.video.franchise.poster_remote_URI)
+                        self.logger.debug("Local poster URI: %s" % self.folder_poster)
+                        self.video.franchise.poster_local_URI = self.folder_poster
                     else:
                         self.folder_poster = self.generate_image(self.path, 'poster.jpg', self.video.franchise.poster_remote_URI)
-                    self.video.franchise.poster_local_URI = self.folder_poster
+                        self.logger.debug("Local poster URI: %s" % self.folder_poster)                        
+                        self.video.franchise.poster_local_URI = self.folder_poster
+                        
                     self.logger.debug("Adding franchise. New path: %s" % self.path)
                     self.logger.debug("Adding poster image %s" % self.folder_poster)
                     
