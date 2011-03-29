@@ -33,33 +33,35 @@ import fs, data, gen, api
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
 authoremail = '<todd.kennedy@gmail.com>'
-version = '0.50'
+__version__ = '0.6b'
 
 class Medieer():
+    #TODO NOW: REMOVE ODDBALL CHARACTERS FROM FILENAMES!
     #TODO VERSION 1.0: IMPLEMENT GUI
     #TODO VERSION 1.0: IMPLEMENT VERSION MIGRATION
     #TODO VERSION 1++: IMPLEMENT IMDB LOOKUP
     #TODO VERSION 1++: IMPLEMENT TVDB LOOKUP
-    #TODO VERSION 1++: ALLOW FOR MULTIPLE CATEGORIZATION -- need to see if symlinks are acceptableT
+    #TODO VERSION 1++: ALLOW FOR MULTIPLE CATEGORIZATION -- need to see if symlinks are acceptable
+    #TODO VERSION 1.0 REFACTOR Medieer OBJECT FOR BETTER CODE ORGANIZATION
     db_fn = '%s.sqlite' % appname
-    dirs = AppDirs(appname, appauthor, version=version)
+    dirs = AppDirs(appname, appauthor)
     connection = False
     title_parser = re.compile('^(.*)\ s(\d+)e(\d+).*$', re.I)    
     
     def __init__(self, args):
-        parser = argparse.ArgumentParser(description='Manage video metadata.')
+        parser = argparse.ArgumentParser(description='Manage media metadata.')
         parser.add_argument('-s', '--show-defaults', action="store_true", dest='show_defaults',
                 default=False, help='Show all application settings')
         parser.add_argument('-n', '--no-gui', action='store_true', dest='nogui', 
                 default=False, help="Don't launch GUI; perform XML update via console")
         parser.add_argument('-f', '--choose-first', action='store_true', dest='first',
-                default=False, help="If movie matches more than one result, choose first from list.")       
+                default=False, help="If movie matches more than one result, choose first from list.")      
+        parser.add_argument('--rewind', action='store_true', dest='rewind',
+                default=False, help="Return videos to original destinations and delete metadata.")
         parser.add_argument('-c', '--change-setting', nargs=1, dest='new_setting', default='',
                 help='Change a setting. Example: --change-setting source_path=/etc/videos')
         parser.add_argument('--debug', nargs=1, dest='debug',
                 help="Set logging level (most info -> least info)[DEBUG|INFO|WARN|ERROR|CRIT]")
-        parser.add_argument('--migrate-database', dest='migrate', action='store_true', 
-                default=False, help="Migrate database between versions")
 
         self.options = parser.parse_args(args)
         self.init_data_dir()
@@ -82,39 +84,109 @@ class Medieer():
             
         # lets figure out what the user wants to do now
         if self.options.show_defaults:
-            settings = list(data.Settings.select())
-            value_width = max([len(setting.value) for setting in settings])
-            key_width = max([len(setting.key) for setting in settings])
-            header = "Setting".ljust(key_width)+"\t"+"Value".ljust(value_width)
-            print "\n" + header + "\n" + "-" * len("Setting".ljust(key_width)) + "\t" + "-" * len("Value".ljust(value_width))
-            for setting in settings:
-                print setting.key.ljust(key_width)+"\t"+setting.value.ljust(value_width)
-            print
-            sys.exit(0)
+            self.show_defaults()
 
         if self.options.new_setting:
-            (new_key, new_value) = self.options.new_setting[0].split('=')
-            try:
-                s = list(data.Settings.select(data.Settings.q.key==new_key))[0]
-            except IndexError:
-                self.logger.critical("%s is not a valid key" % new_key)
-                print "%s is not a valid key.  Use --show-defaults to see valid settings to changeself." % new_key
-                sys.exit(1)
-            else:
-                s.value = new_value
+            self.change_setting(self.options.new_setting)
+            
+        if self.options.rewind:
+            confirm = raw_input(
+"""Are you sure you want to revert?
+Your files will be moved back to the original locations and renamed. 
+Nothing else will be done. [y/N]"""
+)
+            if confirm.lower() == 'y':
+                self.logger.info('Rewinding!')
+                self.rewind()
                 sys.exit(0)
-
-        if self.options.migrate:
-            print "Not implemented"
-            sys.exit(0)
+            else:
+                print "Nothing changed."
+                sys.exit(0)
 
         if self.options.nogui:
             self.logger.info('No gui passed, processing files')
             self.process_files()
         else:
             self.logger.info('Launching gui')
-            self.launch_gui()        
-            
+            self.launch_gui()
+    
+    def rewind(self):
+        try:
+            media = list(data.Media.select())
+        except SQLObjectNotFound:
+            msg = 'No media found with which to rewind'
+            self.logger.info(msg)
+            print msg
+            sys.exit(0)
+        else:                
+            for medium in media:
+                if medium.file_URI:                    
+                    if medium.original_file_URI:
+                        self.logger.debug('Original file location exists')
+                        self.logger.info('Moving: %s to %s' % (medium.file_URI % medium.original_file_URI))
+                        shutil.move(medium.file_URI, medium.original_file_URI)
+                    else:
+                        self.logger.debug('Original file location does not exist')
+                        source_path = data.get_setting('source_path')
+                        media_directory = medium.media_type
+                        try:
+                            new_title = medium.franchise.name
+                        except SQLObjectNotFound:
+                            new_title = medium.title
+                        else:
+                            new_title = medium.title
+                        filename = '%s S%sE%s.%s' % (new_title, 
+                                                     medium.season_number,
+                                                     medium.episode_number,
+                                                     medium.codec)
+                        dest = fjoin(source_path, media_directory, filename)
+                        self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
+                        shutil.move(medium.file_URI, dest)
+                else:
+                    msg = 'This medium does not exist. Got empty location. %s' % medium.title
+                    self.logger.error(msg)
+    
+    def change_setting(self, new_setting):
+        try:
+            split = new_setting[0].index('=')
+            new_key = new_setting[0][:split]
+            new_value = new_setting[0][split+1:]
+        except IndexError:
+            msg = 'Missing setting'
+            self.logger.critical(msg)
+            print msg
+            sys.exit(1)
+        except ValueError:
+            msg = '%s is not in the form of key=value.' % new_setting[0]
+            self.logger.critical(msg)
+            print msg
+            sys.exit(1)
+        else:
+            try:
+                s = list(data.Settings.select(data.Settings.q.key==new_key))[0]
+            except IndexError:
+                self.logger.critical("%s is not a valid key" % new_key)
+                print "%s is not a valid key.  Use --show-defaults to see valid settings to change." % new_key
+                sys.exit(1)
+            else:
+                s.value = new_value
+                msg = 'Changed key %s to value %s' % (s.key, s.value)
+                self.logger.info(msg)
+                print msg
+                sys.exit(0)
+    
+    def show_defaults(self):
+        settings = list(data.Settings.select())
+        value_width = max([len(setting.value) for setting in settings])
+        key_width = max([len(setting.key) for setting in settings])
+        header = "Setting".ljust(key_width)+"\t"+"Value".ljust(value_width)
+        print "\n" + header
+        print "-" * len("Setting".ljust(key_width)) + "\t" + "-" * len("Value".ljust(value_width))
+        for setting in settings:
+            print setting.key.ljust(key_width)+"\t"+setting.value.ljust(value_width)
+        print
+        sys.exit(0)        
+    
     def configure_log(self, level):
         LOG_FILENAME = fjoin(self.dirs.user_data_dir, "%s.log" % appname)
         self.levels = {'debug': logging.DEBUG,
@@ -126,7 +198,8 @@ class Medieer():
         self.logger = logging.getLogger(appname)
         log_level = self.levels.get(level.lower(), logging.NOTSET)
         self.logger.setLevel(log_level)
-        handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024000, backupCount=5)
+        handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, 
+                                            maxBytes=1024000, backupCount=5)
         handler.setLevel(log_level)
         log_format = logging.Formatter('[%(asctime)s] %(name)s:%(levelname)s %(message)s')
         handler.setFormatter(log_format)
@@ -155,7 +228,6 @@ class Medieer():
             else:
                 path_ready = True
         return path     
-        
 
     def init_data_dir(self):
         # make user data directory
@@ -179,6 +251,9 @@ class Medieer():
                 if not cl.tableExists():
                     self.logger.info("SETUP: Creating table %s" % cname)
                     cl.createTable()
+                else:
+                    # TODO: Add the ability to add columns if necessary
+                    passT
                     
         # import genre data
         self.logger.info("SETUP: Getting default genre data")
@@ -264,6 +339,7 @@ class Medieer():
         # defaults to the dest_path
         s = data.Settings(key='source_path', value=source_path)
         
+    # TODO: REFACTOR BELOW OUT INTO A NEW MODULE
     def exists_in_db(self, videofile):
         try:
             # this means we know about the video, so we can skip querying
@@ -476,6 +552,7 @@ class Medieer():
         
         for videofile in filelist:
             if not self.exists_in_db(videofile):
+                original_file_location = videofile
                 (path, video_filename, self.video_ext) = fs.fn_to_parts(videofile)
                     
                 # what are we looking up? tv? movie?
@@ -512,8 +589,10 @@ class Medieer():
                 # should we organize?
                 if data.get_setting('master_org'):
                     self.video.file_URI = self.organize_file(videofile)
+                    self.video.original_file_URI = original_file_location
                 else:
-                    self.video.file_URI = videofile    
+                    self.video.file_URI = videofile
+                    self.video.original_file_URI = videofile
 
                 # process the image for the video
                 poster_filename = "%s.jpg" % self.get_filename_base(self.video.file_URI)

@@ -121,6 +121,9 @@ class Settings(SQLObject):
     
     def __str__(self):
         return self.value
+    
+    def __repr__(self):
+        self.__str__()
 
 class Genre(SQLObject, NSCommon):
     name = UnicodeCol(length=255, default='')
@@ -134,6 +137,9 @@ class Genre(SQLObject, NSCommon):
     
     def __str__(self):
         return self.name
+        
+    def __repr__(self):
+        return self.__str__()
 
 class NSID(SQLObject):
     TMDB = 0
@@ -169,6 +175,9 @@ class NSID(SQLObject):
     
     def __str__(self):
         return "%s: %s" % (self.sites.index(self.ns), self.value)
+    
+    def __repr__(self):
+        return self.__str__()
         
 class Series(SQLObject, NSCommon):
     name = UnicodeCol(length=255, default='')
@@ -184,6 +193,12 @@ class Series(SQLObject, NSCommon):
         
         for nsid in APISeries.ids:
             n = NSID(ns=nsid['ns'], value=nsid['value'], series=self)
+    
+    def __str__(self):
+        return self.name
+    
+    def __repr__(self):
+        return self.__str__()
 
 class Media(SQLObject, NSCommon):
     G = 0
@@ -224,6 +239,7 @@ class Media(SQLObject, NSCommon):
     franchise = ForeignKey('Series', default=0)
     episode_number = IntCol(default=0)
     season_number = IntCol(default=0)
+    original_file_URI = UnicodeCol(default='')
     
     def fromAPIMedia(self, APIMedia):
         self.title = APIMedia.title
