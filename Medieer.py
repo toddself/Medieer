@@ -395,6 +395,7 @@ Nothing else will be done. [y/N]"""
         if not isinstance(selected_series, data.Series):
             s = data.Series()
             s.fromAPISeries(selected_series)
+            s.poster_local_URI = self.generate_image(fjoin('/tmp', s.name+'.jpg'), s.poster_remote_URI)
             selected_series = s
 
         return selected_series
