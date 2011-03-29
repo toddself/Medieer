@@ -36,7 +36,6 @@ authoremail = '<todd.kennedy@gmail.com>'
 __version__ = '0.6'
 
 class Medieer():
-    #TODO NOW: REMOVE ODDBALL CHARACTERS FROM FILENAMES!
     #TODO VERSION 1.0: IMPLEMENT GUI
     #TODO VERSION 1.0: IMPLEMENT VERSION MIGRATION
     #TODO VERSION 1++: IMPLEMENT IMDB LOOKUP
