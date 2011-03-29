@@ -135,11 +135,15 @@ Nothing else will be done. [y/N]"""
                         except SQLObjectNotFound:
                             self.logger.debug('Franchise has no name: %s' % medium.title)                            
                             new_title = medium.title
-
-                        filename = '%s S%sE%s.%s' % (new_title, 
-                                                     medium.season_number,
-                                                     medium.episode_number,
-                                                     medium.codec)
+                        
+                        if medium.media_type == data.media_types[data.TV]:
+                            filename = '%s S%sE%s.%s' % (new_title, 
+                                                        medium.season_number,
+                                                        medium.episode_number,
+                                                        medium.codec)
+                        else:
+                            filename = '%s.%s' % (new_title, medium.codec)
+                            
                         self.logger.debug(filename)
                         dest = fjoin(source_path, media_directory, filename)
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
