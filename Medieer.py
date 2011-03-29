@@ -130,15 +130,18 @@ Nothing else will be done. [y/N]"""
                         source_path = data.get_setting('source_path')
                         media_directory = medium.media_type
                         try:
+                            self.logger.debug("Franchise name: %s" % medium.franchise.name)
                             new_title = medium.franchise.name
                         except SQLObjectNotFound:
+                            self.logger.debug('Franchise has no name?' % medium.franchise)                            
                             new_title = medium.title
-                        else:
-                            new_title = medium.title
+
                         filename = '%s S%sE%s.%s' % (new_title, 
                                                      medium.season_number,
                                                      medium.episode_number,
                                                      medium.codec)
+                        self.logger.debug(filename)
+                        q = raw_input()
                         dest = fjoin(source_path, media_directory, filename)
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
                         shutil.move(medium.file_URI, dest)

@@ -14,7 +14,18 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
-TEMP_DIR='/tmp'
+TEMP_DIR='/tmp/m_t'
+mkdir -p "$TEMP_DIR/TV/The Simpsons/Season 22/"
+mkdir -p "$TEMP_DIR/TV/Community/Season 2/"
+mkdir -p "$TEMP_DIR/TV/Community/Season 1/"
+mkdir -p "$TEMP_DIR/TV/Justified/Season 2/"
+mkdir -p "$TEMP_DIR/TV/Justified/Season 1/"
+mkdir -p "$TEMP_DIR/TV/Star Wars: The Clone Wars/Season 3/"
+mkdir -p "$TEMP_DIR/TV/Star Wars: The Clone Wars/Season 2/"
+mkdir -p "$TEMP_DIR/TV/American Dad!/Season 6/"
+mkdir -p "$TEMP_DIR/TV/Bob's Burgers/Season 1/"
+mkdir -p "$TEMP_DIR/Movies/"
+
 touch "$TEMP_DIR/TV/The Simpsons/Season 22/Episode 17: Love Is A Many Strangled Thing.mp4"
 touch "$TEMP_DIR/TV/The Simpsons/Season 22/Episode 16: A Midsummer’s Nice Dream.mp4"
 touch "$TEMP_DIR/TV/Community/Season 2/Episode 17: Intro to Political Science.mp4"
