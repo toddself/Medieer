@@ -133,7 +133,7 @@ Nothing else will be done. [y/N]"""
                             self.logger.debug("Franchise name: %s" % medium.franchise.name)
                             new_title = medium.franchise.name
                         except SQLObjectNotFound:
-                            self.logger.debug('Franchise has no name?' % medium.franchise)                            
+                            self.logger.debug('Franchise has no name?' % medium.title)                            
                             new_title = medium.title
 
                         filename = '%s S%sE%s.%s' % (new_title, 
