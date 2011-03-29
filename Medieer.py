@@ -385,20 +385,23 @@ class Medieer():
                         # for videoxml, the images need to be same name as the
                         # objects they represent
                         (image_path, image_filename) = self.path.rsplit('/',1)
-                        self.folder_poster = self.generate_image(image_path, image_filename+".jpg", self.video.franchise.poster_remote_URI)
+                        image_filename += '.jpg'
+                        self.folder_poster = self.generate_image(image_path, image_filename, self.video.franchise.poster_remote_URI)
                     else:
                         self.folder_poster = self.generate_image(self.path, 'poster.jpg', self.video.franchise.poster_remote_URI)
+                    self.video.franchise.poster_local_URI = self.folder_poster
                     self.logger.debug("Adding franchise. New path: %s" % self.path)
+                    self.logger.debug("Adding poster image %s" % self.folder_poster)
                     
                     # season level directory
                     season = "Season %s" % self.video.season_number
                     self.path = fjoin(self.path, season)
                     self._make_path(self.path)
-                    if self.folder_poster and self.org_type == 'videoxml':
+                    if self.org_type == 'videoxml':
                         image_dest = self.path+".jpg"
-                        shutil.copy2(self.folder_poster, image_dest)
-                    elif self.folder_poster:
-                        shutil.copy2(self.folder_poster, self.path)
+                        shutil.copy2(self.video.franchise.poster_local_URI, image_dest)
+                    else:
+                        shutil.copy2(self.video.franchise.poster_local_URI, self.path)
                     
                     self.logger.debug('Organizing TV by series. New path: %s' % self.path)
 
@@ -516,7 +519,7 @@ class Medieer():
                 if self.video.poster_remote_URI:
                     self.generate_image(self.path, poster_filename, self.video.poster_remote_URI)
                 elif self.video.media_type == data.media_types[data.TV] and self.folder_poster:
-                    shutil.copy2(self.folder_poster, fjoin(self.path, poster_filename))
+                    shutil.copy2(self.video.franchise.poster_local_URI, fjoin(self.path, poster_filename))
 
                 # process the xml for the video if we're making individual
                 # videofiles.  if not, we'll process it all at the end

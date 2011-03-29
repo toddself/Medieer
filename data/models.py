@@ -175,6 +175,7 @@ class Series(SQLObject, NSCommon):
     nsids = MultipleJoin('NSID')
     description = UnicodeCol(default='')
     poster_remote_URI = UnicodeCol(default='')
+    poster_local_URI = UnicodeCol(default='')
     
     def fromAPISeries(self, APISeries):
         self.name = APISeries.title
