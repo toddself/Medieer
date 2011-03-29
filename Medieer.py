@@ -379,6 +379,7 @@ Nothing else will be done. [y/N]"""
         series = list(data.Series.select(data.Series.q.name.startswith(lookup_name)))
         
         if len(series) == 0:
+            self.logger.debug('Nothing starting with %s, looking up: %s' % (lookup_name, series_name))
             series = tvr.lookup(title=series_name)
         
         if self.options.first:
