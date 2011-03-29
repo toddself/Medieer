@@ -399,6 +399,7 @@ class Medieer():
                     self._make_path(self.path)
                     if self.org_type == 'videoxml':
                         image_dest = self.path+".jpg"
+                        self.logger.debug("Franchise: %s" % self.video.franchise)
                         shutil.copy2(self.video.franchise.poster_local_URI, image_dest)
                     else:
                         shutil.copy2(self.video.franchise.poster_local_URI, self.path)
