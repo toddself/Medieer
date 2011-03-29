@@ -395,9 +395,8 @@ Nothing else will be done. [y/N]"""
         if not isinstance(selected_series, data.Series):
             s = data.Series()
             s.fromAPISeries(selected_series)
-            s.poster_local_URI = self.generate_image(fjoin('/tmp', s.name+'.jpg'), s.poster_remote_URI)
-            selected_series = s
-
+            selected_series = s            
+            
         return selected_series
         
     def parse_show_title(self, title_string):
@@ -524,7 +523,9 @@ Nothing else will be done. [y/N]"""
                 print "Can't open %s for writing." % local_file
                 sys.exit(1)
                 
-            return local_file       
+            return local_file
+        else:
+            return local_file
     
     def generate_videoxml(self):
         xml_filename = fs.generate_filename(self.path, self.get_filename_base(self.video.file_URI), 'xml')
