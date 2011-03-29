@@ -433,6 +433,9 @@ Nothing else will be done. [y/N]"""
                 sys.exit(1)
         else:
             return True
+            
+    def clean_name_for_fs(self, name):
+        return name.replace('(', '').replace(')', '').replace(':','')
         
     def organize_file(self, videofile):
             self.path = data.get_setting('dest_path')
@@ -451,18 +454,18 @@ Nothing else will be done. [y/N]"""
             if mt == movies:
                 self.logger.debug("MOVIES")
                 if movies_by_genre:
-                    self.path = fjoin(self.path, self.video.genres[0].name)
+                    self.path = fjoin(self.path, self.clean_name_for_fs(self.video.genres[0].name))
                     self.logger.debug("Organizing movies by genre. New path: %s" % self.path)
                         
             elif mt == tv:
                 self.logger.debug("TV SHOWS")
                 if tv_by_genre:
-                    self.path = fjoin(self.path, self.video.genres[0].name)
+                    self.path = fjoin(self.path, self.clean_name_for_fs(self.video.genres[0].name))
                     self.logger.debug('Organizing TV by genre. New path: %s' % self.path)
                         
                 if tv_by_series:
                     # series level directory
-                    self.path = fjoin(self.path, self.video.franchise.name)
+                    self.path = fjoin(self.path, self.clean_name_for_fs(self.video.franchise.name))
                     self._make_path(self.path)
                     if self.org_type == 'videoxml':
                         # for videoxml, the images need to be same name as the
