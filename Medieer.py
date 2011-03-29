@@ -141,7 +141,6 @@ Nothing else will be done. [y/N]"""
                                                      medium.episode_number,
                                                      medium.codec)
                         self.logger.debug(filename)
-                        q = raw_input()
                         dest = fjoin(source_path, media_directory, filename)
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
                         shutil.move(medium.file_URI, dest)
