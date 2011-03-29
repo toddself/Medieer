@@ -15,6 +15,12 @@
 #     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
 TEMP_DIR='/tmp/m_t'
+
+if [ -e $TEMP_DIR ]
+then
+	rm -rf $TEMP_DIR
+fi
+
 mkdir -p "$TEMP_DIR/TV/The Simpsons/Season 22/"
 mkdir -p "$TEMP_DIR/TV/Community/Season 2/"
 mkdir -p "$TEMP_DIR/TV/Community/Season 1/"
