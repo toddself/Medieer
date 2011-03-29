@@ -123,7 +123,7 @@ Nothing else will be done. [y/N]"""
                 if medium.file_URI:                    
                     if medium.original_file_URI:
                         self.logger.debug('Original file location exists')
-                        self.logger.info('Moving: %s to %s' % (medium.file_URI % medium.original_file_URI))
+                        self.logger.info('Moving: %s to %s' % (medium.file_URI, medium.original_file_URI))
                         shutil.move(medium.file_URI, medium.original_file_URI)
                     else:
                         self.logger.debug('Original file location does not exist')
@@ -148,6 +148,7 @@ Nothing else will be done. [y/N]"""
                         dest = fjoin(source_path, media_directory, filename)
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
                         shutil.move(medium.file_URI, dest)
+                        medium.file_URI = dest
                 else:
                     msg = 'This medium does not exist. Got empty location. %s' % medium.title
                     self.logger.error(msg)

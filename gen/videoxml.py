@@ -30,7 +30,7 @@ class VideoXML():
         self.xml = etree.Element('video')
         
         title = etree.SubElement(self.xml, 'title')
-        title.text = "Episode: %s: %s" % (video.episode_number % video.title)
+        title.text = "Episode: %s: %s" % (unicode(video.episode_number) % video.title)
 
         year = etree.SubElement(self.xml, 'year')
         year.text = str(video.released.year)
@@ -67,7 +67,7 @@ class VideoXML():
         movie = etree.SubElement(self.viddb, 'movie')
         
         origtitle = etree.SubElement(movie, 'origtitle')
-        origtitle.text = "Episode: %s: %s" % (video.episode_number % video.title)
+        origtitle.text = "Episode: %s: %s" % (unicode(video.episode_number) % video.title)
         
         year = etree.SubElement(movie, 'year')
         year.text = str(video.released.year)
