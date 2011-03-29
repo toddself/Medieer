@@ -24,10 +24,10 @@ except ImportError:
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
 authoremail = '<todd.kennedy@gmail.com>'
-version = '0.50'
+__version__ = '0.6'
 
 setup(name=appname,
-      version=version,
+      version=__version__,
       author=appauthor,
       author_email=authoremail,
       url='http://medieer.selfassembled.org',

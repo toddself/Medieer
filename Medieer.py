@@ -33,7 +33,7 @@ import fs, data, gen, api
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
 authoremail = '<todd.kennedy@gmail.com>'
-__version__ = '0.6b'
+__version__ = '0.6'
 
 class Medieer():
     #TODO NOW: REMOVE ODDBALL CHARACTERS FROM FILENAMES!
