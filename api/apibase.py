@@ -128,7 +128,7 @@ class APIBase():
         try:
             self.server_response = urlopen(self.url)
         except HTTPError:
-            self.log.critical("Couldn't open %s for reading" % self.url)
+            self.log.critical("Couldn't open %s for reading: %s" % (self.url, HTTPError.message))
             raise APIError("Couldn't open %s for reading" % self.url)
 
         self._server_msg = self.server_response.msg
