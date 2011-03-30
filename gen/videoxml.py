@@ -16,13 +16,22 @@
 
 from lxml import etree
 from sqlobject import SQLObjectNotFound
+from data import TV, MOVIES
 
 # TODO: SWITCH TO BEAUTIFULSOUP IF POSSIBLE
 
 class VideoXML():
     def __init__(self, log):
         self.log = log
-        
+       
+    def format_title(title, episode, media_type):
+        if media_type == TV:
+            self.log.debug('TV Show, adding Episode number')
+            return 'Episode %02d: %s' % (unicode(episode), title)
+        else:
+            self.log.debug('Movie, leaving title')
+            return title
+
     def toxml(self, pretty=False):
         return etree.tostring(self.xml, encoding='UTF-8', xml_declaration=False)
         
@@ -30,7 +39,7 @@ class VideoXML():
         self.xml = etree.Element('video')
         
         title = etree.SubElement(self.xml, 'title')
-        title.text = "Episode: %s: %s" % (unicode(video.episode_number), video.title)
+        title.text = self.format_title(video.title, video.episode_number, video.media_type)
 
         year = etree.SubElement(self.xml, 'year')
         year.text = str(video.released.year)
@@ -67,7 +76,7 @@ class VideoXML():
         movie = etree.SubElement(self.viddb, 'movie')
         
         origtitle = etree.SubElement(movie, 'origtitle')
-        origtitle.text = "Episode: %s: %s" % (unicode(video.episode_number), video.title)
+        origtitle = self.format_title(video.title, video.episode_number, video.media_type)
         
         year = etree.SubElement(movie, 'year')
         year.text = str(video.released.year)
