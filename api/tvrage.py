@@ -74,7 +74,7 @@ class TVRage(APIBase):
         return serials
     
     def parseResponse(self, method):
-        self.soup = BeautifulStoneSoup(self._response_data)
+        self.soup = BeautifulStoneSoup(self._response_data, convertEntities=BeautifulStoneSoup.HTML_ENTITIES)
         api_data = eval('self.%sParser' % method)(self.soup)
         return api_data
         

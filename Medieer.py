@@ -33,7 +33,7 @@ import fs, data, gen, api
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
 authoremail = '<todd.kennedy@gmail.com>'
-__version__ = '0.6'
+__version__ = '0.65'
 
 class Medieer():
     #TODO VERSION 1.0: IMPLEMENT GUI
@@ -61,6 +61,8 @@ class Medieer():
                 help='Change a setting. Example: --change-setting source_path=/etc/videos')
         parser.add_argument('--debug', nargs=1, dest='debug',
                 help="Set logging level (most info -> least info)[DEBUG|INFO|WARN|ERROR|CRIT]")
+        parser.add_argument('-x', '--regenerate-xml', dest='regenerate_xml', default=False,
+                action='store_true', help='Generate XML from data in database.  Do not process new files.')
 
         self.options = parser.parse_args(args)
         self.init_data_dir()
@@ -92,8 +94,7 @@ class Medieer():
             confirm = raw_input(
 """Are you sure you want to revert?
 Your files will be moved back to the original locations and renamed. 
-Nothing else will be done. [y/N]"""
-)
+Nothing else will be done. [y/N]""")
             if confirm.lower() == 'y':
                 self.logger.info('Rewinding!')
                 self.rewind()
@@ -101,6 +102,20 @@ Nothing else will be done. [y/N]"""
             else:
                 print "Nothing changed."
                 sys.exit(0)
+
+        if self.options.regenerate_xml:
+            self.logger.info('Regenerating XML')
+            videos = list(data.Media.select())
+            self.logger.debug('Org method: %s ' % data.get_setting('organization_method'))
+            if data.get_setting('organization_method') == 'videoxml':
+                self.logger.info('Video org method is videoxml')
+                for video in videos:
+                    self.logger.debug('Regenerating for %s' % video.title)
+                    self.generate_videoxml(os.path.split(video.file_URI)[0], video)
+            else:
+                self.logger.info('Video org method is directory')
+                self.generate_video_directory()
+            sys.exit(0)
 
         if self.options.nogui:
             self.logger.info('No gui passed, processing files')
@@ -195,21 +210,18 @@ Nothing else will be done. [y/N]"""
     
     def configure_log(self, level):
         LOG_FILENAME = fjoin(self.dirs.user_data_dir, "%s.log" % appname)
-        self.levels = {'debug': logging.DEBUG,
+        levels = {'debug': logging.DEBUG,
                        'info': logging.INFO,
                        'warn': logging.WARNING,
                        'error': logging.ERROR,
                        'crit': logging.CRITICAL}
-               
-        self.logger = logging.getLogger(appname)
-        log_level = self.levels.get(level.lower(), logging.NOTSET)
-        self.logger.setLevel(log_level)
-        handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, 
-                                            maxBytes=1024000, backupCount=5)
-        handler.setLevel(log_level)
-        log_format = logging.Formatter('[%(asctime)s] %(name)s:%(levelname)s %(message)s')
-        handler.setFormatter(log_format)
-        self.logger.addHandler(handler)
+                       
+        logging.basicConfig(level = levels.get(level, logging.NOTSET),
+                                 format = '[%(asctime)s] %(name)-12s %(levelname)-8s %(message)s',
+                                 datefmt = '%m/%d %H:%M',
+                                 filename=LOG_FILENAME,
+                                 filemode='w')
+        self.logger = logging.getLogger('')
     
     def connected(self):
         if not self.connection:
@@ -263,7 +275,7 @@ Nothing else will be done. [y/N]"""
                     
         # import genre data
         self.logger.info("SETUP: Getting default genre data")
-        t = api.TMDB(log=self.logger)
+        t = api.TMDB(log=logging.getLogger('TMDB'))
         genres = t.lookup(domain='genres')
         for genre in genres:
             g = data.Genre()
@@ -347,26 +359,27 @@ Nothing else will be done. [y/N]"""
         
     # TODO: REFACTOR BELOW OUT INTO A NEW MODULE
     def exists_in_db(self, videofile):
+        self.logger.debug("Looking up file URI: %s" % videofile)
         try:
-            # this means we know about the video, so we can skip querying
-            # the apis to find out what video it is.
-            self.logger.debug("Looking up file URI: %s" % videofile)
             self.video = list(data.Media.select(data.Media.q.file_URI==videofile))[0]
+        except IndexError:
+            try:
+                self.video = list(data.Media.select(data.Media.q.original_file_URI==videofile))[0]
+            except IndexError:
+                self.logger.debug('Video not found')
+                return False
+        else:
             self.logger.debug("Found video: %s" % self.video.title.encode('ascii', 'replace').decode('ascii'))
             self.video_ext = videofile.rsplit('.', 1)[1]
-            return True            
-            
-        except IndexError:
-            self.logger.debug("Video not found")
-            return False
+            return True
             
     def lookup_movie(self, video_filename):
-        t = api.TMDB(log=self.logger)
+        t = api.TMDB(log=logging.getLogger('TMDB'))
         self.logger.debug("This is a movie, trying to lookup %s via tmdb" % video_filename)
         self.results = t.lookup(video_filename)
         
     def lookup_tv(self, video_filename):
-        tvr = api.TVRage(log=self.logger)
+        tvr = api.TVRage(log=logging.getLogger('TVRage'))
         self.logger.debug("This is a TV Show, trying to lookup %s via tvrage" % video_filename)
         (series_name, season, episode) = self.parse_show_title(video_filename)
         series = self.get_series(series_name, tvr, video_filename)
@@ -527,25 +540,22 @@ Nothing else will be done. [y/N]"""
         else:
             return local_file
     
-    def generate_videoxml(self):
-        xml_filename = fs.generate_filename(self.path, self.get_filename_base(self.video.file_URI), 'xml')
+    def generate_videoxml(self, path, video):
+        xml_filename = fs.generate_filename(path, self.get_filename_base(video.file_URI), 'xml')
+        x = gen.VideoXML(log=logging.getLogger('VideoXML'))
+        x.makeVideoXML(video)
         try:
-            os.stat(xml_filename)
+            out = file(xml_filename, 'w')
+            out.write(codecs.BOM_UTF8)
+            out.write(x.toxml())
+            out.close()
         except OSError:
-            x = gen.VideoXML(log=self.logger)
-            x.makeVideoXML(self.video)
-            try:
-                out = file(xml_filename, 'w')
-                out.write(codecs.BOM_UTF8)
-                out.write(x.toxml())
-                out.close()
-            except OSError:
-                self.logger.critical("Can't open %s for writing." % xml_filename)
-                print "Can't open %s for writing." % xml_filename
-                sys.exit(1)
+            self.logger.critical("Can't open %s for writing." % xml_filename)
+            print "Can't open %s for writing." % xml_filename
+            sys.exit(1)
     
     def generate_video_directory(self):
-        x = gen.VideoXML(log=self.logger)
+        x = gen.VideoXML(log=logging.getLogger('VideoXML'))
         x.makeVideoDirectory(list(data.Media.select()))
         try:
             output_path = data.get_setting('dest_path')
@@ -560,8 +570,8 @@ Nothing else will be done. [y/N]"""
             sys.exit(1)
 
     def get_filename_base(self, uri):
-        return os.path.split(self.video.file_URI)[1].rsplit('.')[0]
-
+        return os.path.split(uri)[1].rsplit('.')[0]
+        
     def process_files(self):
         filelist = fs.make_list(fs.get_basepath(data.get_setting('source_path')))
         self.org_type = data.get_setting('organization_method')
@@ -620,7 +630,7 @@ Nothing else will be done. [y/N]"""
                 # process the xml for the video if we're making individual
                 # videofiles.  if not, we'll process it all at the end
                 if self.org_type == 'videoxml':
-                    self.generate_videoxml()
+                    self.generate_videoxml(self.path, self.video)
 
                 try:
                     del self.results

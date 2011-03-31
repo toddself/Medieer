@@ -24,7 +24,7 @@ except ImportError:
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
 authoremail = '<todd.kennedy@gmail.com>'
-__version__ = '0.6'
+__version__ = '0.65'
 
 setup(name=appname,
       version=__version__,

@@ -234,7 +234,7 @@ class Media(SQLObject, NSCommon):
     runtime = IntCol(default=0)
     poster_remote_URI = UnicodeCol(default='')
     poster_local_URI = UnicodeCol(default='')
-    file_URI = UnicodeCol(default='')
+    file_URI = UnicodeCol(default='', unique=True)
     media_type = IntCol(default=MOVIES)
     franchise = ForeignKey('Series', default=0)
     episode_number = IntCol(default=0)

@@ -16,7 +16,6 @@
 
 from lxml import etree
 from sqlobject import SQLObjectNotFound
-from data import TV, MOVIES
 
 # TODO: SWITCH TO BEAUTIFULSOUP IF POSSIBLE
 
@@ -24,10 +23,11 @@ class VideoXML():
     def __init__(self, log):
         self.log = log
        
-    def format_title(title, episode, media_type):
-        if media_type == TV:
+    def format_title(self, title, episode, media_type):
+        self.log.debug("Media type: %s" % media_type)
+        if media_type == 'TV':
             self.log.debug('TV Show, adding Episode number')
-            return 'Episode %02d: %s' % (unicode(episode), title)
+            return 'Episode %02d: %s' % (episode, title)
         else:
             self.log.debug('Movie, leaving title')
             return title
