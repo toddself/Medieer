@@ -7,20 +7,3 @@ sudo python setup.py install
 
 Medieer.py -h for help
 Medieer.py -n to run without the gui.
-
-Release 0.65
-------------
-Added ability to regenerate XML from database (-x)
-Fixed issue with special characters being double-escaped
-Fixed issue with movie titles getting "episode" prefixed to the title
-Reconfigured logging to display module being logged
-
-Release 0.60
-------------
-Added ability to rollback to non-organized state. (--rewind)
-Fixed Episode naming convention so Episode number appears in XML title field
-Fixed problems with image copying and naming
-Modified database tables. For users of 0.5 you'll need to alter two tables:
-ALTER TABLE media ADD COLUMN original_file__ur_i TEXT;
-ALTER TABLE series ADD COLUMN local_poster__ur_i TEXT:
-Changed default structure to VideoXML
