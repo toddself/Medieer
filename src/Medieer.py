@@ -20,6 +20,9 @@
 # TODO VERSION 1++: IMPLEMENT TVDB LOOKUP
 # TODO VERSION 1++: ALLOW FOR MULTIPLE CATEGORIZATION. SYMLINKS?
 # TODO VERSION 1.0 REFACTOR Medieer OBJECT FOR BETTER CODE ORGANIZATION
+# TODO: CORE/FIRST_RUN
+# TODO: CORE/SUBSCRIBERS PUB/SUB CODE
+# TODO: CORE/FILETOOLS
 
 
 __all__ = ['main', ]
@@ -27,53 +30,54 @@ __all__ = ['main', ]
 import sys
 import argparse
 import logging
-from os.path import join, isdir
+from os.path import join as fjoin, isdir
 
 from sqlobject import connectionForURI, sqlhub
 from appdirs import AppDirs
+
+from core.sub import subscribers
 
 APPNAME = 'Medieer'
 APPAUTHOR = 'Selfassembled'
 __version__ = '0.65'
 
-class ConsoleParse(argparse.Action):
+class ConsoleAction(argparse.Action):
     """Sets no_gui to be true when any other console commands are used"""
     
     def __call__(self, parser, namespace, values, option_string=None):
         if values:
             setattr(namespace, self.dest, values)
         else:
-            setattr(namespace, self.dest, True)
-            
-        if not hasattr(namespace, 'no_gui'):
-            setattr(namespace, 'no_gui', True)
+            setattr(namespace, self.dest, True)            
+        setattr(namespace, 'no_gui', True)
+
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='Manage media metadata.')
     console_group = parser.add_argument_group('console', 'Console switches')
-    console_group.add_argument('-s', '--show-defaults', action=ConsoleParse, 
+    console_group.add_argument('-s', '--show-defaults', action=ConsoleAction, 
                         nargs=0,
                         dest='show_defaults', 
                         default=False, 
                         help='Show all settings and exit. -n implied.')                        
-    console_group.add_argument('-n', '--no-gui', action=ConsoleParse,
+    console_group.add_argument('-n', '--no-gui', action=ConsoleAction,
                         nargs=0,
                         dest='no_gui', 
                         default=False, 
                         help="Don't launch GUI.")
-    console_group.add_argument('-t', '--trust', action=ConsoleParse,
+    console_group.add_argument('-t', '--trust', action=ConsoleAction,
                         nargs=0,
                         dest='trust', 
                         default=False, 
                         help="If title returns more than one result,"+ 
                         "choose first from list.")      
-    console_group.add_argument('-r', '--rewind', action=ConsoleParse, 
+    console_group.add_argument('-r', '--rewind', action=ConsoleAction, 
                         nargs=0,
                         dest='rewind',
                         default=False, 
                         help="Rename files to source names. -n implied")
-    console_group.add_argument('-c', '--change-setting', action=ConsoleParse,
-                        nargs=1,
+    console_group.add_argument('-c', '--change-setting', action=ConsoleAction,
+                        nargs='*',
                         dest='change_setting', 
                         default='', 
                         help='Change a setting.'+
@@ -88,30 +92,31 @@ def parse_args(args):
                         dest='debug',
                         default='INFO'
                         help='Set logging level [DEBUG|INFO]. Default: INFO')
+    parser.add_argument('infile', nargs='*')
     return parser.parse_args(args)
 
 def init_log(level, appdirs):
     levels = {'debug': logging.DEBUG, 'info': logging.INFO}
-    log_filename = join(appdirs.user_log_dir, "%s.log" % appdirs.appname)               
+    log_filename = fjoin(appdirs.user_log_dir, "%s.log" % appdirs.appname)               
     msg_fmt = '[%(asctime)s] %(name)-12s %(levelname)-8s %(message)s'
     date_fmt = '%m/%d %H:%M'
     level = levels.get(level, logging.NOTSET)
     
     try:
-        logging.basicConfig(level = level,
-                            format = msg_fmt,
-                            datefmt = date_fmt,
+        logging.basicConfig(level=level,
+                            format=msg_fmt,
+                            datefmt=date_fmt,
                             filename=LOG_FILENAME,
                             filemode='w')
     except IOError:
-        logging.basicConfig(level = level,
-                            format = msg_fmt,
-                            datefmt = date_fmt,
+        logging.basicConfig(level=level,
+                            format=msg_fmt,
+                            datefmt=date_fmt,
                             stream=sys.stderr)
-
+    
 def open_db(appdirs):
     db_driver = 'sqlite'
-    db_fn = join(appdirs.user_data_dir, appdirs.appname+'.sqlite')
+    db_fn = fjoin(appdirs.user_data_dir, appdirs.appname+'.sqlite')
     connection_string = "%s://%s" % (db_driver, db_fn)
     connection = connectionForURI(connection_string)
     sqlhub.processConnection = connection                            
@@ -121,8 +126,8 @@ def launch_console(options):
     console.main(options, log=logging.getLogger('console'))
 
 def launch_gui(options):
-    from core.tools import launch_pw
-    launch_pw()
+    from core.tools import reexec_with_pythonw
+    reexec_with_pythonw()
     from pyWx import gui
     gui.main(options, log=logging.getLogger('gui')
 
@@ -138,6 +143,8 @@ def main(argv):
 
     # Now that the database exists, we can safely open the connection
     open_db(appdirs)
+    # Lets start up all our pubsub subsriptions
+    subscribers.init()
     if options.no_gui:
         launch_console(options)
     else:
