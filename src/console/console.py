@@ -16,8 +16,17 @@
 
 from pubsub import pub
 
-from core.models import Settings
+from core.models import Settings, Media
 from core.tools import get_files
+
+REVERT_MSG = """\
+Are you sure you want to revert?
+Your files will be moved back to the original locations and renamed. 
+Nothing else will be done. [y/N]
+"""
+
+def console_display(msg):
+    print msg
 
 # not so subtly stolen from phatch and stani's talk at pycon 2011
 def ask(question, answers):
@@ -29,14 +38,6 @@ def ask(question, answers):
 def ask_yes_no(question):
     return ask(question, ['yes','no'])  == 'yes'
 
-REVERT_MSG = """\
-Are you sure you want to revert?
-Your files will be moved back to the original locations and renamed. 
-Nothing else will be done. [y/N]
-"""
-
-def console_display(msg):
-    print msg
 
 class Console():
     """"""
@@ -51,9 +52,9 @@ class Console():
         elif self.options.rewind:
             self.rewind()
         elif self.options.regenerate_xml:
-            self.regenerate_xml()
+            self.regenerate_xml(self.ensure_list(self.options.infile))
         elif self.options.infile:
-            self.process_files(self.options.infile)
+            self.process_files(self.ensure_list(self.options.infile))
         else:
             self.process_files('*')
 
@@ -101,22 +102,29 @@ class Console():
                 print "Nothing changed."
                 sys.exit()
         
-        def regenerate_xml(self):
-            pub.sendMessage('GENERATE_XML')
+        def regenerate_xml(self, f_list):
+            for fn in f_list:
+                pub.sendMessage('GENERATE_XML', filename=fn)
+            pub.sendMessage('OUTPUT_XML')
             sys.exit()
         
         def process_files(self, f_list):
-            if not isinstance(f_list, dict):
-                f_list = get_files()
             for fn in f_list:
                 pub.sendMessage('PROCESS_FILE', filename=fn)
-
+            sys.exit()
+        
+        def ensure_list(self, arr):
+            if not isinstance(arr, list):
+                return [arr]
+            else:
+                return arr
+                
 def main(options, log):
     # We want all the end-user messages to be pulled into the console display
     # function.  This will allow the end user to see them
     pub.subscribe(console_display, 'STD_OUT')
+    ft = FileTools()
     con = Console(options)
-    
                 
 if __name__ == '__main__':
     main()

@@ -29,6 +29,17 @@ def get_setting(setting_key):
     except:
         return ''
 
+def model_in_db(self, filename):
+    try:
+        medium = list(Media.select(Media.q.file_URI==filename))[0]
+    except IndexError:
+        try:
+            medium = list(data.Media.select(data.Media.q.original_file_URI==videofile))[0]
+        except IndexError:
+            return False
+
+    return True
+
 class NSCommon():
     '''
     NSCommon defines a base set of getter and setter methods allowing

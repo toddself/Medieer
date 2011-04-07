@@ -18,8 +18,15 @@ from lxml import etree
 from sqlobject import SQLObjectNotFound
 
 # TODO: SWITCH TO BEAUTIFULSOUP IF POSSIBLE
+# TODO: CHANGE TO GENERATORS
+# TODO: ONE CLASS PER OUTPUT TYPE
+# TODO: ADD DATA ABOUT HOW OUTPUT WORKS - SINGLE FILE, MULTIPLE FILE
 
 class VideoXML():
+    SINGLE_FILE = 0
+    MULTIPLE_FILES = 1
+    output_types = ['single file', 'multiple files']
+    
     def __init__(self, log):
         self.log = log
        

@@ -143,8 +143,6 @@ def main(argv):
 
     # Now that the database exists, we can safely open the connection
     open_db(appdirs)
-    # Lets start up all our pubsub subsriptions
-    subscribers.init()
     if options.no_gui:
         launch_console(options)
     else:
