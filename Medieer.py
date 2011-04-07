@@ -21,7 +21,8 @@ import argparse
 import re
 import codecs
 import logging
-import logging.handlers
+import unicodedata
+import string
 from os.path import join as fjoin
 
 from appdirs import AppDirs
@@ -512,11 +513,14 @@ Nothing else will be done. [y/N]""")
             # path determination done, lets make sure it exists
             self._make_path(self.path)
             self.logger.debug("Filename: %s" % self.video.title)
+            valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+            decoded_filename = unicodedata.normalize('NFKD', self.video.title).encode('ASCII','ignore')
+            safe_filename = ''.join(c for c in decoded_filename if c in valid_filename_chars)
             if self.video.media_type == data.media_types[data.TV]:
-                title_filename = "Episode %s: %s" % (self.video.episode_number, self.video.title)
+                title_filename = "Episode %s: %s" % (self.video.episode_number, safe_filename)
                 self.logger.debug('Adding episode number to title: %s' % title_filename)
             else:
-                title_filename = self.video.title
+                title_filename = safe_filename
             video_destination = fs.generate_filename(self.path, title_filename, self.video_ext)
             self.logger.debug("Destination: %s" % video_destination)
             shutil.move(videofile, video_destination)
