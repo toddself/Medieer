@@ -35,11 +35,9 @@ from os.path import join as fjoin, isdir
 from sqlobject import connectionForURI, sqlhub
 from appdirs import AppDirs
 
-from core.sub import subscribers
-
 APPNAME = 'Medieer'
 APPAUTHOR = 'Selfassembled'
-__version__ = '0.65'
+__version__ = '1.0'
 
 class ConsoleAction(argparse.Action):
     """Sets no_gui to be true when any other console commands are used"""
@@ -90,7 +88,7 @@ def parse_args(args):
                         'Do not process new files. -n implied')
     parser.add_argument('-d', '--debug', nargs=1, 
                         dest='debug',
-                        default='INFO'
+                        default='INFO',
                         help='Set logging level [DEBUG|INFO]. Default: INFO')
     parser.add_argument('infile', nargs='*')
     return parser.parse_args(args)
@@ -129,17 +127,18 @@ def launch_gui(options):
     from core.tools import reexec_with_pythonw
     reexec_with_pythonw()
     from pyWx import gui
-    gui.main(options, log=logging.getLogger('gui')
-
+    gui.main(options, log=logging.getLogger('gui'))
+    
 def main(argv):
-    options = parse_args(argv)
+    options = argparse.parse_args(args)    
     appdirs = AppDirs(APPNAME, APPAUTHOR)
     init_log(options.debug[0].lower(), appdirs)
 
     # We need to initialize the data directories if this is a first-run
     if not isdir(appdirs.user_data_dir):
-        from core import first_run
-        first_run.main(log=logging.getLogger('first_run'), appdirs)
+        #from core import first_run
+        #first_run.main(log=logging.getLogger('first_run'), appdirs)
+        pass
 
     # Now that the database exists, we can safely open the connection
     open_db(appdirs)
