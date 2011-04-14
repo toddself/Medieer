@@ -86,7 +86,7 @@ class FileTools():
 
     def process_file(self, filename):
         if not media_in_db(filename):
-            
+          pass  
 
     def generate_xml(self, media_file_URI):
         # TODO: MASSIVE REFACTORING IN OUTPUT!!!
@@ -142,22 +142,6 @@ class FileTools():
 
 
 
-    def _check_path(self, question, path):
-        path_ready = False
-        while not path_ready:
-            path = raw_input("%s [%s]" % (question, path))
-            try:
-                os.stat(path)
-            except OSError:
-                try:
-                    os.makedirs(path)
-                    path_ready = True
-                except OSError:
-                    log.warning("Can't create: %s" % path)
-                    print "Error: can't create %s" % path   
-            else:
-                path_ready = True
-        return path     
 
 
 
@@ -271,7 +255,7 @@ class FileTools():
                     # series level directory
                     self.path = fjoin(self.path, self.clean_name_for_fs(self.video.franchise.name))
                     self._make_path(self.path)
-                    if self.org_type == 'videoxml':
+                    if self.org_type == 'xml':
                         # for videoxml, the images need to be same name as the
                         # objects they represent
                         (image_path, image_filename) = self.path.rsplit('/',1)
@@ -291,7 +275,7 @@ class FileTools():
                     season = "Season %s" % self.video.season_number
                     self.path = fjoin(self.path, season)
                     self._make_path(self.path)
-                    if self.org_type == 'videoxml':
+                    if self.org_type == 'xml':
                         image_dest = self.path+".jpg"
                         log.debug("Franchise: %s" % self.video.franchise)
                         shutil.copy2(self.video.franchise.poster_local_URI, image_dest)
@@ -420,7 +404,7 @@ class FileTools():
 
                 # process the xml for the video if we're making individual
                 # videofiles.  if not, we'll process it all at the end
-                if self.org_type == 'videoxml':
+                if self.org_type == 'xml':
                     self.generate_videoxml(self.path, self.video)
 
                 try:
@@ -432,7 +416,7 @@ class FileTools():
 
         # we are going to generate a master video xml file containing all
         # entries
-        if self.org_type == 'directory':
+        if self.org_type == 'dir':
             self.generate_video_directory()
 
 def main(options, log):

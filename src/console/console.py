@@ -35,8 +35,8 @@ def ask(question, answers):
         answer = raw_input(question).strip().lower()
     return answer
 
-def ask_yes_no(question):
-    return ask(question, ['yes','no'])  == 'yes'
+def ask_yes_no(question, default='yes'):
+    return ask(question, ['yes','no'])  == default
 
 
 class Console():

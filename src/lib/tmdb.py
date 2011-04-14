@@ -17,8 +17,23 @@
 import json
 import re
 
+from pubsub import pub
+
 from apibase import *
-from data.models import NSCommon, Media
+from data.models import NSCommon, Media, Genre
+
+def import_genre_data():
+    # import genre data
+    pub.sendMessage("LOGGER",
+                    module=__name__,
+                    level='DEBUG'.
+                    msg="Getting default genre data")
+    t = TMDB()
+    genres = t.lookup(domain='genres')
+    for genre in genres:
+      g = Genre()
+      g.fromAPIGenre(genre)
+
 
 class TMDB(APIBase):
     path_format = '/%(version)s/%(api)s/%(lang)s/%(output)s/%(apikey)s'

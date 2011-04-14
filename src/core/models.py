@@ -19,17 +19,23 @@ from datetime import datetime
 from sqlobject import *
 from sqlobject.versioning import Versioning
 
+_core_models = ['Person', 'NSID', 'Series', 'Media', 'Settings']
+
 def get_setting(setting_key):
     try:
         setting =  list(Settings.select(Settings.q.key==setting_key))[0].value
         if setting == 'true' or setting == 'false':
             return eval(setting.capitalize())
+        elif setting = 'y':
+            return True
+        elif setting = 'n':
+            return False
         else:
             return setting
     except:
         return ''
 
-def model_in_db(self, filename):
+def file_in_db(self, filename):
     try:
         medium = list(Media.select(Media.q.file_URI==filename))[0]
     except IndexError:

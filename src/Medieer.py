@@ -14,15 +14,14 @@
 #     You should have received a copy of the GNU General Public License
 #     along with Medieer.  If not, see <http://www.gnu.org/licenses/>.
 
-# TODO VERSION 1.0: IMPLEMENT GUI
-# TODO VERSION 1.0: IMPLEMENT VERSION MIGRATION
+
 # TODO VERSION 1++: IMPLEMENT IMDB LOOKUP
 # TODO VERSION 1++: IMPLEMENT TVDB LOOKUP
 # TODO VERSION 1++: ALLOW FOR MULTIPLE CATEGORIZATION. SYMLINKS?
-# TODO VERSION 1.0 REFACTOR Medieer OBJECT FOR BETTER CODE ORGANIZATION
-# TODO: CORE/FIRST_RUN
-# TODO: CORE/SUBSCRIBERS PUB/SUB CODE
+
+# TODO VERSION 1.0: IMPLEMENT GUI
 # TODO: CORE/FILETOOLS
+# TODO: PROCESS_FILE in FILETOOLS
 
 
 __all__ = ['main', ]
@@ -128,6 +127,18 @@ def launch_gui(options):
     reexec_with_pythonw()
     from pyWx import gui
     gui.main(options, log=logging.getLogger('gui'))
+
+def log_message(module, msg, level):
+    logger = logging.getLogger(module)
+    logger.log(log_lvl(level), msg)
+
+def log_lvl(level):
+    levels = {'INFO': logging.INFO, 
+              'WARNING': logging.WARNING,
+              'ERROR': logging.ERROR,
+              'DEBUG': logging.DEBUG,
+              'CRITICAL': logging.CRITICAL}
+    return levels.get(level.upper(), logging.WARNING)
     
 def main(argv):
     options = argparse.parse_args(args)    
@@ -136,9 +147,8 @@ def main(argv):
 
     # We need to initialize the data directories if this is a first-run
     if not isdir(appdirs.user_data_dir):
-        #from core import first_run
-        #first_run.main(log=logging.getLogger('first_run'), appdirs)
-        pass
+        from core import first_run
+        first_run.main(appdirs.user_data_dir)
 
     # Now that the database exists, we can safely open the connection
     open_db(appdirs)
