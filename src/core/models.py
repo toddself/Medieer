@@ -35,16 +35,24 @@ def get_setting(setting_key):
     except:
         return ''
 
-def file_in_db(self, filename):
+def media_in_db(filename):
     try:
         medium = list(Media.select(Media.q.file_URI==filename))[0]
     except IndexError:
         try:
-            medium = list(data.Media.select(data.Media.q.original_file_URI==videofile))[0]
+            medium = list(Media.select(Media.q.original_file_URI==filename))[0]
         except IndexError:
             return False
 
     return True
+
+def series_in_db(series_name):
+    try:
+        series = list(Series.select(Series.q.name==series_name))[0]
+    except IndexeError:
+        return False
+    else:
+        return series
 
 class NSCommon():
     '''

@@ -24,7 +24,9 @@ from os.path import join as fjoin
 from pubsub import pub
 from sqlobject import SQLObjectNotFound
 
-from core.models import Media, get_setting, media_in_db
+from core.models import Media, get_setting, media_in_db, series_in_db
+from lib.tvrage import TVRage
+from lib.tmdb import TMDB
 from lib.generators import *
 
 VALID_FILENAME_CHARS = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -86,7 +88,33 @@ class FileTools():
 
     def process_file(self, filename):
         if not media_in_db(filename):
-          pass  
+            media = self.lookup_by_filename(filename)
+
+    def lookup_by_filename(self, media):
+        (src_path, fn_media) = os.path.split(media)
+        for media_type in Media.media_types:
+            if media_type.lower() in src_path.lower():
+                return eval('lookup_%s' % media_type.lower())(fn_media)
+    
+    def lookup_tv(self, episode_info):
+        try:
+            episode_data = re.match(TITLE_PARSER, episode_info).groups()
+        except AttributeError:
+            raise AttributeError('TV Show titles must match SHOW SXXXEXXX')
+        else:
+            t = TVRage()
+            if not series_in_db(episode_data[0]):
+                apiseries = t.lookup(episode_data[0])
+                if len(apiseries) > 1:
+                    pub.sendMessage('CONFLICT_RESOLVER', apiseries)
+                elif apiseries:
+                    s = Series()
+                    s.fromAPISeries(apiseries)
+                    self.series
+            
+    
+    def lookup_movies(self, movie_info):
+        pass
 
     def generate_xml(self, media_file_URI):
         # TODO: MASSIVE REFACTORING IN OUTPUT!!!

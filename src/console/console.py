@@ -43,6 +43,7 @@ class Console():
     """"""
     
     def __init__(self, options, log):
+        pub.subscribe(self.conflict_resolver, 'RESOLVE_CONFLICT')
         self.log = log
         self.options = options
         if self.options.show_defaults:
@@ -118,6 +119,9 @@ class Console():
                 return [arr]
             else:
                 return arr
+        
+        def conflict_resolver(self, conflict_list):
+            pass
                 
 def main(options, log):
     # We want all the end-user messages to be pulled into the console display
