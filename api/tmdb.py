@@ -122,7 +122,10 @@ class TMDB(APIBase):
         self.log.debug("In searchParser")
         ids = []
         for d in api_data:
-            ids.append(d.get('id', 0))
+            try:
+                ids.append(d.get('id', 0))
+            except AttributeError:
+		pass
         
         return ids
     

@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 # This file is part of Medieer.
-# 
+#
 #     Medieer is free software: you can redistribute it and/or modify
 #     it under the terms of the GNU General Public License as published by
 #     the Free Software Foundation, either version 3 of the License, or
 #     (at your option) any later version.
-# 
+#
 #     Medieer is distributed in the hope that it will be useful,
 #     but WITHOUT ANY WARRANTY; without even the implied warranty of
 #     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #     GNU General Public License for more details.
-# 
+#
 #     You should have received a copy of the GNU General Public License
 #     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -30,6 +30,7 @@ from sqlobject.declarative import DeclarativeMeta
 from sqlobject import SQLObjectNotFound
 
 import fs, data, gen, api
+from api.apibase import APIError
 
 appname = 'Medieer'
 appauthor = 'Todd Kennedy'
@@ -46,16 +47,16 @@ class Medieer():
     db_fn = '%s.sqlite' % appname
     dirs = AppDirs(appname, appauthor)
     connection = False
-    title_parser = re.compile('^(.*)\ s(\d+)e(\d+).*$', re.I)    
-    
+    title_parser = re.compile('^(.*)\ s(\d+)e(\d+).*$', re.I)
+
     def __init__(self, args):
         parser = argparse.ArgumentParser(description='Manage media metadata.')
         parser.add_argument('-s', '--show-defaults', action="store_true", dest='show_defaults',
                 default=False, help='Show all application settings')
-        parser.add_argument('-n', '--no-gui', action='store_true', dest='nogui', 
+        parser.add_argument('-n', '--no-gui', action='store_true', dest='nogui',
                 default=False, help="Don't launch GUI; perform XML update via console")
         parser.add_argument('-f', '--choose-first', action='store_true', dest='first',
-                default=False, help="If movie matches more than one result, choose first from list.")      
+                default=False, help="If movie matches more than one result, choose first from list.")
         parser.add_argument('--rewind', action='store_true', dest='rewind',
                 default=False, help="Return videos to original destinations and delete metadata.")
         parser.add_argument('-c', '--change-setting', nargs=1, dest='new_setting', default='',
@@ -67,34 +68,34 @@ class Medieer():
 
         self.options = parser.parse_args(args)
         self.init_data_dir()
-        
+
         if self.options.debug:
             self.configure_log(self.options.debug[0])
         else:
             self.configure_log('info')
 
         self.db_filelocation = fjoin(self.dirs.user_data_dir, self.db_fn)
-        
+
         try:
             os.stat(self.db_filelocation)
         except OSError:
             self.logger.info('No db found, assuming fresh install')
             self.init_app()
-        
+
         if not self.connected():
             self.open_db()
-            
+
         # lets figure out what the user wants to do now
         if self.options.show_defaults:
             self.show_defaults()
 
         if self.options.new_setting:
             self.change_setting(self.options.new_setting)
-            
+
         if self.options.rewind:
             confirm = raw_input(
 """Are you sure you want to revert?
-Your files will be moved back to the original locations and renamed. 
+Your files will be moved back to the original locations and renamed.
 Nothing else will be done. [y/N]""")
             if confirm.lower() == 'y':
                 self.logger.info('Rewinding!')
@@ -124,7 +125,7 @@ Nothing else will be done. [y/N]""")
         else:
             self.logger.info('Launching gui')
             self.launch_gui()
-    
+
     def rewind(self):
         try:
             media = list(data.Media.select())
@@ -133,9 +134,9 @@ Nothing else will be done. [y/N]""")
             self.logger.info(msg)
             print msg
             sys.exit(0)
-        else:                
+        else:
             for medium in media:
-                if medium.file_URI:                    
+                if medium.file_URI:
                     if medium.original_file_URI:
                         self.logger.debug('Original file location exists')
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, medium.original_file_URI))
@@ -148,17 +149,17 @@ Nothing else will be done. [y/N]""")
                             self.logger.debug("Franchise name: %s" % medium.franchise.name)
                             new_title = medium.franchise.name
                         except SQLObjectNotFound:
-                            self.logger.debug('Franchise has no name: %s' % medium.title)                            
+                            self.logger.debug('Franchise has no name: %s' % medium.title)
                             new_title = medium.title
-                        
+
                         if medium.media_type == data.media_types[data.TV]:
-                            filename = '%s S%sE%s.%s' % (new_title, 
+                            filename = '%s S%sE%s.%s' % (new_title,
                                                         medium.season_number,
                                                         medium.episode_number,
                                                         medium.codec)
                         else:
                             filename = '%s.%s' % (new_title, medium.codec)
-                            
+
                         self.logger.debug(filename)
                         dest = fjoin(source_path, media_directory, filename)
                         self.logger.info('Moving: %s to %s' % (medium.file_URI, dest))
@@ -167,7 +168,7 @@ Nothing else will be done. [y/N]""")
                 else:
                     msg = 'This medium does not exist. Got empty location. %s' % medium.title
                     self.logger.error(msg)
-    
+
     def change_setting(self, new_setting):
         try:
             split = new_setting[0].index('=')
@@ -196,7 +197,7 @@ Nothing else will be done. [y/N]""")
                 self.logger.info(msg)
                 print msg
                 sys.exit(0)
-    
+
     def show_defaults(self):
         settings = list(data.Settings.select())
         value_width = max([len(setting.value) for setting in settings])
@@ -207,8 +208,8 @@ Nothing else will be done. [y/N]""")
         for setting in settings:
             print setting.key.ljust(key_width)+"\t"+setting.value.ljust(value_width)
         print
-        sys.exit(0)        
-    
+        sys.exit(0)
+
     def configure_log(self, level):
         LOG_FILENAME = fjoin(self.dirs.user_data_dir, "%s.log" % appname)
         levels = {'debug': logging.DEBUG,
@@ -216,14 +217,14 @@ Nothing else will be done. [y/N]""")
                        'warn': logging.WARNING,
                        'error': logging.ERROR,
                        'crit': logging.CRITICAL}
-                       
+
         logging.basicConfig(level = levels.get(level, logging.NOTSET),
                                  format = '[%(asctime)s] %(name)-12s %(levelname)-8s %(message)s',
                                  datefmt = '%m/%d %H:%M',
                                  filename=LOG_FILENAME,
                                  filemode='w')
         self.logger = logging.getLogger('')
-    
+
     def connected(self):
         if not self.connection:
             self.open_db()
@@ -373,19 +374,22 @@ Nothing else will be done. [y/N]""")
             self.logger.debug("Found video: %s" % self.video.title.encode('ascii', 'replace').decode('ascii'))
             self.video_ext = videofile.rsplit('.', 1)[1]
             return True
-            
+
     def lookup_movie(self, video_filename):
         t = api.TMDB(log=logging.getLogger('TMDB'))
         self.logger.debug("This is a movie, trying to lookup %s via tmdb" % video_filename)
-        self.results = t.lookup(video_filename)
-        
+        try:
+            self.results = t.lookup(video_filename)
+        except APIError:
+            self.results = []
+
     def lookup_tv(self, video_filename):
         tvr = api.TVRage(log=logging.getLogger('TVRage'))
         self.logger.debug("This is a TV Show, trying to lookup %s via tvrage" % video_filename)
         (series_name, season, episode) = self.parse_show_title(video_filename)
         series = self.get_series(series_name, tvr, video_filename)
         self.results = tvr.lookup(series_id=series.get_tvrage_series_id(), season=season, episode=episode)
-        
+
     def get_series(self, series_name, tvr, video_filename):
         # lets see if this series exists
         lookup_name = series_name.replace('.', ' ').replace('_', ' ')[:8]
@@ -601,8 +605,13 @@ Nothing else will be done. [y/N]""")
                     result = self.results[selected]
                     process_vid = True
                 elif len(self.results) == 1 or self.options.first:
-                    result = self.results[0]
-                    process_vid = True
+                    try:
+                        result = self.results[0]
+                    except IndexError:
+                        print "No movies found for %s" % video_filename
+                        process_vid = False
+                    else:
+                        process_vid = True
                 else:
                     self.logger.debug("No matches, skipping file")
                     process_vid = False
@@ -640,7 +649,7 @@ Nothing else will be done. [y/N]""")
                     del self.results
                     del result
                     del self.video
-                except AttributeError:
+                except (UnboundLocalError,AttributeError):
                     pass
     
         # we are going to generate a master video xml file containing all
