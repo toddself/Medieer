@@ -295,7 +295,7 @@ class Media(SQLObject, NSCommon):
         elif value in self.ratings:
             self._SO_set_rating(self.ratings.index(value))
         else:
-            raise ValueError("%s is not a known rating")
+            self._SO_set_rating(self.ratings.index('None'))
     
     def _set_released(self, value):
         if isinstance(value, datetime):

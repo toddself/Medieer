@@ -45,7 +45,10 @@ class VideoXML():
         year.text = str(video.released.year)
 
         genre = etree.SubElement(self.xml, 'genre')
-        genre.text = video.listGenres(prepend_media_type=False)[0]
+        try:
+            genre.text = video.listGenres(prepend_media_type=False)[0]
+        except IndexError:
+            genre.text = ''
 
         mpaa = etree.SubElement(self.xml, 'mpaa')
         mpaa.text = video.rating

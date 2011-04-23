@@ -15,7 +15,7 @@
 
 import os
 from os.path import join as fjoin
-from urllib2 import urlopen
+from urllib2 import urlopen, HTTPError
 
 from sqlobject import SQLObjectNotFound
 
@@ -39,7 +39,7 @@ def download_file(URL, dest):
         with open(dest, 'wb') as f:
             f.write(urlopen(URL).read())
             return True
-    except OSError:
+    except (HTTPError, OSError):
         return False
 
 def generate_filename(movie_path, movie_name, extn):
