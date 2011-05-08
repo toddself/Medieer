@@ -24,7 +24,7 @@ from os.path import join as fjoin
 from pubsub import pub
 from sqlobject import SQLObjectNotFound
 
-from core.models import Media, get_setting, media_in_db, series_in_db
+from core.models import Media, Series, get_setting, media_in_db, series_in_db
 from lib.tvrage import TVRage
 from lib.tmdb import TMDB
 from lib.generators import *
@@ -43,6 +43,7 @@ class FileTools():
         pub.subscribe(self.generate_xml, 'GENERATE_XML')
         pub.subscribe(self.process_file, 'PROCESS_FILE')
         pub.subscribe(self.output_xml, 'OUTPUT_XML')
+        pub.subscribe(self.set_series, 'SET_SERIES')
         self.log = logging.getLogger('filetools')
         self.output = []
         
@@ -100,18 +101,38 @@ class FileTools():
         try:
             episode_data = re.match(TITLE_PARSER, episode_info).groups()
         except AttributeError:
-            raise AttributeError('TV Show titles must match SHOW SXXXEXXX')
+            pub.sendMessage('STD_OUT', 'TV Show titles must match SHOW SXXXEXXX')
+            return False
         else:
-            t = TVRage()
             if not series_in_db(episode_data[0]):
-                apiseries = t.lookup(episode_data[0])
-                if len(apiseries) > 1:
-                    pub.sendMessage('CONFLICT_RESOLVER', apiseries)
-                elif apiseries:
-                    s = Series()
-                    s.fromAPISeries(apiseries)
-                    self.series
-            
+                lookup_series(episode_data[0])
+            if self.series:
+                t = TVRage()
+                try:
+                    episode = t.lookup(**episode_data)
+                    m = Media()
+                    m.fromAPIMedia(episode)
+                    return m
+                except APIError:
+                    pub.sendMessage('STD_OUT', 
+                                    'NOT FOUND: %s S%sE%s' % **episode_data)
+                    return False
+
+    def lookup_series(self, series_name):
+        t = TVRage()
+        apiseries = t.lookup(series_name)
+        if len(apiseries) > 1:
+            pub.sendMessage('CONFLICT_RESOLVER', apiseries)
+        elif not apiseries:
+            pub.sendMessage('STD_OUT', 'NOT FOUND: %s, skipping' % series_name)
+            self.series = None
+        elif apiseries:
+            pub.sendMessasge('SET_SERIES', apiseries)
+    
+    def set_series(self, series):
+        s = Series()
+        s.fromAPISeries(series)
+        self.series = s
     
     def lookup_movies(self, movie_info):
         pass
