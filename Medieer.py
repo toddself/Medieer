@@ -422,6 +422,7 @@ Nothing else will be done. [y/N]""")
         try:
             return re.match(self.title_parser, title_string).groups()
         except AttributeError:
+            return (title_string, 1, 1)
             self.logger.warn('%s does not match form of SERIES S?E?' % title_string)        
         
     def resolve_multiple_results(self, video_filename, results):
